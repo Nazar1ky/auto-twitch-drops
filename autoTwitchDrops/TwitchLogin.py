@@ -1,6 +1,6 @@
 import requests
 import logging
-from src.constants import CLIENT_ID, USER_AGENT
+from .constants import CLIENT_ID
 import os
 import json
 from time import sleep
@@ -14,39 +14,40 @@ class TwitchLogin:
             logging.info(f"Please login in: {device_code["verification_uri"]} | Expires in {device_code["expires_in"] / 60} minutes!")
 
             while True:
-                if self.get_token(device_code["device_code"]):
+                try:
+                    self.get_token(device_code["device_code"])
+                except:
+                    sleep(device_code["interval"])
+                else:
                     break
-
-                sleep(device_code["interval"])
 
             save_cookies = True
 
-        validate = self.validate()
-
-        if not validate:
+        if not self.validate():
             self.remove_cookies()
             return False
 
         if save_cookies:
             self.save_cookies()
 
-        self.unique_id = self.get_unique_id()
-
         return True
 
     def get_device_code(self):
         payload = {
             "client_id": CLIENT_ID,
-            "scopes": (
-                "channel_read chat:read user_blocks_edit "
-                "user_blocks_read user_follows_edit user_read"
-                ),
+            "scopes": " ".join([ # https://dev.twitch.tv/docs/authentication/scopes/ can be removed
+                "channel_read",
+                "chat:read", 
+                "user_blocks_edit",
+                "user_blocks_read",
+                "user_follows_edit",
+                "user_read",
+            ]),
         }
 
         r = requests.post("https://id.twitch.tv/oauth2/device", data=payload)
 
-        if r.status_code != 200:
-            return None
+        r.raise_for_status()
 
         return r.json()
 
@@ -57,24 +58,14 @@ class TwitchLogin:
             "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
         }
         r = requests.post("https://id.twitch.tv/oauth2/token", payload)
-
-        if r.status_code != 200:
-            return None
+  
+        r.raise_for_status()
 
         data = r.json()
 
         self.access_token = data["access_token"]
 
-    def get_unique_id(self):
-        headers = {
-            "authorization": f"OAuth {self.access_token}",
-            "client-id": CLIENT_ID,
-            "user-agent": USER_AGENT,
-        }
-
-        r = requests.get("https://m.twitch.tv", headers=headers)
-
-        self.unique_id = r.cookies.get("unique_id")
+        return True
 
     def validate(self):
         headers = {

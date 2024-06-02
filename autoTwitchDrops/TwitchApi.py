@@ -2,8 +2,9 @@ import logging
 
 import requests
 
-from src.constants import CLIENT_ID, HASHES, USER_AGENT, DIRECTORYPAGE_REQUESTID
+from .constants import CLIENT_ID, DIRECTORYPAGE_REQUESTID, HASHES, USER_AGENT
 
+logger = logging.getLogger()
 
 class TwitchApi:
     def __init__(self, login):
@@ -11,9 +12,19 @@ class TwitchApi:
         self.headers = {
             "authorization": f"OAuth {login.access_token}",
             "client-id": CLIENT_ID,
-            "device-id": login.unique_id,
+            # "device-id": login.unique_id,
             "user-agent": USER_AGENT,
         }
+
+    def send_raw_request(self, request):
+        response = requests.post(
+        url="https://gql.twitch.tv/gql",
+        json=request,
+        headers=self.headers,
+        timeout=15,
+        ).json()
+
+        return response
 
     def send_request(self, operation_name, variables = None):
         query = {
@@ -24,7 +35,7 @@ class TwitchApi:
                      "sha256Hash": HASHES[operation_name],
                         "version": 1,
                 },
-            }
+            },
         }
 
         response = requests.post(
@@ -35,7 +46,7 @@ class TwitchApi:
             ).json()
 
         if response.get("error"):
-            logging.error(f"{response} | {query}")
+            logger.error(f"{response} | {query}")
             return None
 
         return response["data"]
@@ -48,7 +59,7 @@ class TwitchApi:
         data = self.send_request("VideoPlayerStreamInfoOverlayChannel", variables)
 
         return data["user"]
-    
+
     def claim_drop(self, drop_id):
         variables = {
             "input": {
@@ -56,13 +67,15 @@ class TwitchApi:
             },
         }
 
-        data = self.send_request("DropsPage_ClaimDropRewards", variables)
+        self.send_request("DropsPage_ClaimDropRewards", variables)
 
         # if "status" in data["claimDropRewards"]:
         #     return True
 
+        # TODO need to check somehow if claimed
+
         return True
-    
+
     def playback_access_token(self, channel_name):
         variables = {
                 "isLive": True,
@@ -88,12 +101,12 @@ class TwitchApi:
         data = self.send_request("DropCampaignDetails", variables)["user"]["dropCampaign"]
 
         return data
-    
+
     def get_inventory(self):
         data = self.send_request("Inventory")
 
         return data["currentUser"]["inventory"]
-    
+
     def get_campaigns(self):
         data = {
             "operationName": "ViewerDropsDashboard",
@@ -102,7 +115,7 @@ class TwitchApi:
         data = self.send_request("ViewerDropsDashboard")
 
         return data["currentUser"]["dropCampaigns"]
-    
+
 
     def get_category_streamers(self, game_slug, limit = 50):
         variables = {
@@ -117,7 +130,7 @@ class TwitchApi:
                 "sort": "RELEVANCE",
                 "tags": [],
                 "systemFilters": [
-                    "DROPS_ENABLED"
+                    "DROPS_ENABLED",
                 ],
                 "requestID": DIRECTORYPAGE_REQUESTID,
             },
