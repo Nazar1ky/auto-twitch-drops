@@ -16,6 +16,10 @@ ch = logging.StreamHandler()
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
+logging.getLogger("chardet.charsetprober").setLevel(logging.ERROR)
+logging.getLogger("requests").setLevel(logging.ERROR)
+logging.getLogger("werkzeug").setLevel(logging.ERROR)
+logging.getLogger("websocket").setLevel(logging.ERROR)
 
 if __name__ == "__main__":
     login = TwitchLogin()
@@ -44,4 +48,6 @@ Smart Load:
 more functions find_channel_to_watch
 
 refactor everything
+
+module logging queue required
 """

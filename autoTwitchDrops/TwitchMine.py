@@ -27,7 +27,7 @@ class TwitchMine:
 
     def start(self):
         # Btw need to start by watched time drops and required time TODO
-        campaigns = self.get_campaigns_to_mine("PUBG: BATTLEGROUNDS")
+        campaigns = self.get_campaigns_to_mine("MultiVersus")
         for campaign in campaigns:
             if campaign.get("channels"):
                 for channel in campaign["channels"]: # Scrap category to check all streamers

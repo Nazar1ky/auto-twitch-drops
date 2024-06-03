@@ -25,11 +25,9 @@ class TwitchWebSocketApp(WebSocketApp):
 
     def send(self, request):
         request_str = json.dumps(request, separators=(",", ":"))
-        logging.debug(f"Send {request_str}")
         super().send(request_str)
 
     def ping(self):
-        logger.info("Pinged WebSocket")
         self.send({"type": "PING"})
 
 class TwitchWebSocket:
@@ -50,7 +48,6 @@ class TwitchWebSocket:
         t.start()
 
     def close(self):
-        logger.info("Closing WebSocket")
         self.ws.close()
 
     @staticmethod
@@ -72,8 +69,6 @@ class TwitchWebSocket:
 
     @staticmethod
     def on_message(ws, message):
-        logger.info(f"Message: {message.strip()}")
-
         response = json.loads(message)
 
         if response["type"] != "MESSAGE":
