@@ -18,7 +18,7 @@ class TwitchLogin:
 
     async def login(self):
         """
-        This is global function which called to login. Saved cookies will be in cookies.json.
+        This is function which called to login. Saved cookies will be in cookies.json.
         https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/#authorization-code-grant-flow
         """
         self.session = aiohttp.ClientSession()
