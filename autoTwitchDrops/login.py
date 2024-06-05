@@ -59,7 +59,7 @@ class TwitchLogin:
             "scopes": "channel_read chat:read user_blocks_edit user_blocks_read user_follows_edit user_read",
         }
 
-        async with session.post("https://id.twitch.tv/oauth2/device", data=payload) as response:
+        async with session.post("https://id.twitch.tv/oauth2/device", data=payload, raise_for_status=True) as response:
             return await response.json()
 
     async def _get_token(self, session, device_code):
