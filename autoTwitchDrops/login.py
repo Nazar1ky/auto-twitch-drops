@@ -3,7 +3,6 @@ import json
 import logging
 import os
 import time
-
 import aiohttp
 
 from .constants import CLIENT_ID
@@ -28,13 +27,14 @@ class TwitchLogin:
                 self._load_cookies()
             except (FileNotFoundError, KeyError, json.decoder.JSONDecodeError):
                 device_code = await self._get_device_code(session)
-                start_time = time.now()
+                start_time = time.time()
+
                 self.logger.info(
                     f"Please login in: {device_code['verification_uri']} | Expires in {device_code['expires_in'] / 60} minutes!",
                 )
 
                 while True:
-                    if start_time > device_code["expires_in"]:
+                    if time.time() - start_time > device_code["expires_in"]:
                         self.logger.info("Time for login expired. Restart program.")
                         return False
 
