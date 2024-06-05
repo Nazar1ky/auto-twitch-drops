@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 
 import aiohttp
 
@@ -11,61 +12,65 @@ from .constants import CLIENT_ID
 class TwitchLogin:
     logger = logging.getLogger(__name__)
 
-    def __init__(self):
+    def __init__(self, cookie_filename):
         self.nickname = None
         self.user_id = None
         self.access_token = None
+        self.cookie_filename = cookie_filename
 
     async def login(self):
         """
         This is function which called to login. Saved cookies will be in cookies.json.
         https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/#authorization-code-grant-flow
         """
-        self.session = aiohttp.ClientSession()
-        save_cookies = False
+        async with aiohttp.ClientSession() as session:
+            try:
+                self._load_cookies()
+            except (FileNotFoundError, KeyError, json.decoder.JSONDecodeError):
+                device_code = await self._get_device_code(session)
+                start_time = time.now()
+                self.logger.info(
+                    f"Please login in: {device_code['verification_uri']} | Expires in {device_code['expires_in'] / 60} minutes!",
+                )
 
-        if not self.load_cookies():
-            device_code = await self.get_device_code()
+                while True:
+                    if start_time > device_code["expires_in"]:
+                        self.logger.info("Time for login expired. Restart program.")
+                        return False
 
-            self.logger.info(
-                f"Please login in: {device_code['verification_uri']} | Expires in {device_code['expires_in'] / 60} minutes!",
-            )
+                    if not await self._get_token(session, device_code["device_code"]): # I can do here loop but https://docs.astral.sh/ruff/rules/try-except-in-loop/
+                        await asyncio.sleep(device_code["interval"])
+                        continue
 
-            while True:
-                if not self.get_token(device_code["device_code"]): # I can do here loop but https://docs.astral.sh/ruff/rules/try-except-in-loop/
-                    asyncio.sleep(device_code["interval"])
-                break
+                    break
 
-            save_cookies = True
+            validate_status = await self._validate(session)
 
-        if not await self.validate():
-            self.remove_cookies()
-            return False
+            if not validate_status:
+                self._remove_cookies()
+                return False
 
-        if save_cookies:
-            self.save_cookies()
+            self._save_cookies()
+            return True
 
-        await self.session.close()
-        return True
-
-    async def get_device_code(self):
+    async def _get_device_code(self, session):
         """This function used to get URL for auth to user to account. And device code which used in get_token() to get access_token."""
         payload = {
             "client_id": CLIENT_ID,
             "scopes": "channel_read chat:read user_blocks_edit user_blocks_read user_follows_edit user_read",
         }
 
-        async with self.session.post("https://id.twitch.tv/oauth2/device", data=payload) as response:
+        async with session.post("https://id.twitch.tv/oauth2/device", data=payload) as response:
             return await response.json()
 
-    async def get_token(self, device_code):
+    async def _get_token(self, session, device_code):
         """This function used to get access_token with device_code. If user authorized account then return True else False"""
         payload = {
             "client_id": CLIENT_ID,
             "device_code": device_code,
             "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
         }
-        async with self.session.post("https://id.twitch.tv/oauth2/token", payload) as response:
+        async with session.post("https://id.twitch.tv/oauth2/token", data=payload) as response:
 
             if response.status != 200:
                 return False
@@ -75,13 +80,13 @@ class TwitchLogin:
         self.access_token = data["access_token"]
         return True
 
-    async def validate(self):
+    async def _validate(self, session):
         """In this function we validating account if access_token not expired and valid. Plus we get user_id which used in some requests and nickname (login)."""
         headers = {
                 "Authorization": f"OAuth {self.access_token}",
         }
 
-        async with self.session.get("https://id.twitch.tv/oauth2/validate", headers=headers) as response:
+        async with session.get("https://id.twitch.tv/oauth2/validate", headers=headers) as response:
 
             if response.status != 200:
                 return False
@@ -93,30 +98,24 @@ class TwitchLogin:
 
         return True
 
-    def save_cookies(self):
+    def _save_cookies(self):
         cookies = {
             "access_token": self.access_token,
             "nickname": self.nickname,
             "user_id": self.user_id,
         }
 
-        with open("cookies.json", "w", encoding="utf-8") as file:
+        with open(self.cookie_filename, "w", encoding="utf-8") as file:
             json.dump(cookies, file, ensure_ascii=False, indent=4)
 
-    def load_cookies(self):
-        try:
-            with open("cookies.json", encoding="utf-8") as file:
-                cookies = json.load(file)
+    def _load_cookies(self):
+        with open(self.cookie_filename, encoding="utf-8") as file:
+            cookies = json.load(file)
 
-            self.access_token = cookies["access_token"]
-            self.nickname = cookies["nickname"]
-            self.user_id = cookies["user_id"]
+        self.access_token = cookies["access_token"]
+        self.nickname = cookies["nickname"]
+        self.user_id = cookies["user_id"]
 
-        except FileNotFoundError:
-            return False
-        else:
-            return True
-
-    def remove_cookies(self):
-        if os.path.exists("cookies.json"):
-            os.remove("cookies.json")
+    def _remove_cookies(self):
+        if os.path.exists(self.cookie_filename):
+            os.remove(self.cookie_filename)
