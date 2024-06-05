@@ -42,7 +42,7 @@ class TwitchLogin:
                     try:
                         self.token = await self._get_token(session, device_code["device_code"])
                         break
-                    except (aiohttp.client_exceptions.ClientResponseError, json.decoder.JSONDecodeError):
+                    except (aiohttp.client_exceptions.ClientResponseError, json.decoder.JSONDecodeError, KeyError):
                         await asyncio.sleep(device_code["interval"])
 
             try:
