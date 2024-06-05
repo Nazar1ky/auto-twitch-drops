@@ -36,22 +36,22 @@ class TwitchLogin:
                 while True:
                     if time.time() - start_time > device_code["expires_in"]:
                         self.logger.info("Time for login expired. Restart program.")
-                        return False
+                        return RuntimeError
 
-                    if not await self._get_token(session, device_code["device_code"]): # I can do here loop but https://docs.astral.sh/ruff/rules/try-except-in-loop/
+                    try:
+                        self.token = await self._get_token(session, device_code["device_code"])
+                        break
+                    except aiohttp.client_exceptions.ClientResponseError:
                         await asyncio.sleep(device_code["interval"])
-                        continue
 
-                    break
-
-            validate_status = await self._validate(session)
-
-            if not validate_status:
+            try:
+                self.nickname, self.user_id = await self._validate(session)
+            except aiohttp.client_exceptions.ClientResponseError:
                 self._remove_cookies()
-                return False
+                return RuntimeError
 
             self._save_cookies()
-            return True
+            return None
 
     async def _get_device_code(self, session):
         """This function used to get URL for auth to user to account. And device code which used in get_token() to get access_token."""
@@ -70,15 +70,11 @@ class TwitchLogin:
             "device_code": device_code,
             "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
         }
-        async with session.post("https://id.twitch.tv/oauth2/token", data=payload) as response:
 
-            if response.status != 200:
-                return False
-
+        async with session.post("https://id.twitch.tv/oauth2/token", data=payload, raise_for_status=True) as response:
             data = await response.json()
 
-        self.access_token = data["access_token"]
-        return True
+        return data["access_token"]
 
     async def _validate(self, session):
         """In this function we validating account if access_token not expired and valid. Plus we get user_id which used in some requests and nickname (login)."""
@@ -86,17 +82,11 @@ class TwitchLogin:
                 "Authorization": f"OAuth {self.access_token}",
         }
 
-        async with session.get("https://id.twitch.tv/oauth2/validate", headers=headers) as response:
-
-            if response.status != 200:
-                return False
-
+        async with session.get("https://id.twitch.tv/oauth2/validate", headers=headers, raise_for_status=True) as response:
             data = await response.json()
 
-        self.nickname = data["login"].lower()
-        self.user_id = data["user_id"]
 
-        return True
+        return data["login"].lower(), data["user_id"]
 
     def _save_cookies(self):
         cookies = {
