@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import time
+
 import aiohttp
 
 from .constants import CLIENT_ID
@@ -41,14 +42,14 @@ class TwitchLogin:
                     try:
                         self.token = await self._get_token(session, device_code["device_code"])
                         break
-                    except aiohttp.client_exceptions.ClientResponseError:
+                    except (aiohttp.client_exceptions.ClientResponseError, json.decoder.JSONDecodeError):
                         await asyncio.sleep(device_code["interval"])
 
             try:
                 self.nickname, self.user_id = await self._validate(session)
-            except aiohttp.client_exceptions.ClientResponseError as ex:
+            except Exception:
                 self._remove_cookies()
-                raise RuntimeError from ex
+                raise
 
             self._save_cookies()
 
