@@ -11,7 +11,7 @@ from .constants import CLIENT_ID
 class TwitchLogin:
     logger = logging.getLogger(__name__)
 
-    def __init__(self, cookie_filename):
+    def __init__(self, cookie_filename="cookies.json"):
         self.nickname = None
         self.user_id = None
         self.access_token = None
@@ -36,7 +36,7 @@ class TwitchLogin:
                 while True:
                     if time.time() - start_time > device_code["expires_in"]:
                         self.logger.info("Time for login expired. Restart program.")
-                        return RuntimeError
+                        raise RuntimeError("Time runned out.")
 
                     try:
                         self.token = await self._get_token(session, device_code["device_code"])
@@ -46,12 +46,11 @@ class TwitchLogin:
 
             try:
                 self.nickname, self.user_id = await self._validate(session)
-            except aiohttp.client_exceptions.ClientResponseError:
+            except aiohttp.client_exceptions.ClientResponseError as ex:
                 self._remove_cookies()
-                return RuntimeError
+                raise RuntimeError from ex
 
             self._save_cookies()
-            return None
 
     async def _get_device_code(self, session):
         """This function used to get URL for auth to user to account. And device code which used in get_token() to get access_token."""
