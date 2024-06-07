@@ -1,39 +1,61 @@
+import asyncio
 import logging
 
-from autoTwitchDrops.TwitchLogin import TwitchLogin
-from autoTwitchDrops.TwitchMine import TwitchMine
+import aiohttp
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+from autoTwitchDrops import TwitchApi, TwitchLogin
 
-formatter = logging.Formatter("{asctime} | {levelname} | {funcName:<24s} | {message}", style="{", datefmt="%H:%M:%S")
 
-file_handler = logging.FileHandler("log.log", encoding="utf-8")
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
+def setup_logger():
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
 
-ch = logging.StreamHandler()
-ch.setFormatter(formatter)
-logger.addHandler(ch)
+    formatter = logging.Formatter("{asctime} | {levelname} | {funcName:<24s} | {message}", style="{", datefmt="%H:%M:%S")
 
-logging.getLogger("chardet.charsetprober").setLevel(logging.ERROR)
-logging.getLogger("requests").setLevel(logging.ERROR)
-logging.getLogger("werkzeug").setLevel(logging.ERROR)
-logging.getLogger("websocket").setLevel(logging.ERROR)
+    # console logger
+    ch = logging.StreamHandler()
+    logger.setLevel(logging.INFO)
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+
+    # file logger
+    fh = logging.FileHandler("AutoTwitchDrops.log", encoding="utf-8")
+    logger.setLevel(logging.DEBUG)
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+
+    # suppress verbose logs from external libraries
+    logging.getLogger("chardet.charsetprober").setLevel(logging.ERROR)
+    logging.getLogger("werkzeug").setLevel(logging.ERROR)
+    logging.getLogger("websocket").setLevel(logging.ERROR)
+
+async def main():
+    # AUTH
+    twitch_login = TwitchLogin(cookie_filename="cookies.json")
+    await twitch_login.login()
+
+    logging.info(f"Successfully logged in as {twitch_login.nickname}")
+
+    # API
+    async with aiohttp.ClientSession(raise_for_status=True, timeout=aiohttp.ClientTimeout(total=60)) as session:
+        api = TwitchApi(session, twitch_login)
+        # miner(api)
+        # print(await api.get_channel_information("lenovolegion"))
+        # print(await api.playback_access_token("thegiftingchannel"))
+        # print(await api.get_full_campaign_data("1d17dc2f-2115-11ef-b66c-0a58a9feac02"))
+        # print(await api.get_inventory())
+        campaigns = await api.get_campaigns()
+        ids = []
+        for campaign in campaigns:
+            ids.append(campaign["id"])
+        print(ids)
+        await api.get_full_campaigns_data(ids)
+        # print(await api.get_category_streamers("party-quiz"))
+        # print(await api.test())
+
 
 if __name__ == "__main__":
-    login = TwitchLogin()
-
-    if login.login():
-        logging.info(f"Successfully logged in as {login.nickname}")
-
-    app = TwitchMine(login)
-    app.start()
-    # while True:
-    #     app.send_watch("valorant")
-    #     # app.send_watch("redbeard")
-    #     time.sleep(14)
-#15 42
+    asyncio.run(main())
 
 """ TODO:
 Refactor
@@ -50,4 +72,13 @@ more functions find_channel_to_watch
 refactor everything
 
 module logging queue required
+
+file logging
+
+
+Found campaign and drop, if all okay - start scraping category, if in category founded streamers that in campaign list - mine, no - skip.
+
+need to sort drop by channels/watch time/campaign game name bruh u
+
+entities for campaigns and drops
 """
