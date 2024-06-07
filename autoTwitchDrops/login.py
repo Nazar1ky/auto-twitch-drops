@@ -12,7 +12,8 @@ from .constants import CLIENT_ID
 class TwitchLogin:
     logger = logging.getLogger(__name__)
 
-    def __init__(self, cookie_filename="cookies.json"):
+    def __init__(self, session, cookie_filename="cookies.json"):
+        self._sess = session
         self.nickname = None
         self.user_id = None
         self.access_token = None
@@ -23,47 +24,46 @@ class TwitchLogin:
         This is function which called to login. Saved cookies will be in cookies.json.
         https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/#authorization-code-grant-flow
         """
-        async with aiohttp.ClientSession() as session:
-            try:
-                self._load_cookies()
-            except (FileNotFoundError, KeyError, json.decoder.JSONDecodeError):
-                device_code = await self._get_device_code(session)
-                start_time = time.time()
+        try:
+            self._load_cookies()
+        except (FileNotFoundError, KeyError, json.decoder.JSONDecodeError):
+            device_code = await self._get_device_code()
+            start_time = time.time()
 
-                self.logger.info(
-                    f"Please login in: {device_code['verification_uri']} | Expires in {device_code['expires_in'] / 60} minutes!",
-                )
+            self.logger.info(
+                f"Please login in: {device_code['verification_uri']} | Expires in {device_code['expires_in'] / 60} minutes!",
+            )
 
-                while True:
-                    if time.time() - start_time > device_code["expires_in"]:
-                        self.logger.info("Time for login expired. Restart program.")
-                        raise RuntimeError("Time ran out")
+            while True:
+                if time.time() - start_time > device_code["expires_in"]:
+                    self.logger.info("Time for login expired. Restart program.")
+                    raise RuntimeError("Time ran out")
 
-                    try:
-                        self.token = await self._get_token(session, device_code["device_code"])
-                        break
-                    except (aiohttp.client_exceptions.ClientResponseError, json.decoder.JSONDecodeError, KeyError):
-                        await asyncio.sleep(device_code["interval"])
+                try:
+                    self.token = await self._get_token(device_code["device_code"])
+                    break
+                except (aiohttp.client_exceptions.ClientResponseError, json.decoder.JSONDecodeError, KeyError):
+                    await asyncio.sleep(device_code["interval"])
 
-            try:
-                self.nickname, self.user_id = await self._validate(session)
-            except Exception:
-                self._remove_cookies()
-                raise
+        try:
+            self.nickname, self.user_id = await self._validate()
+        except Exception:
+            self._remove_cookies()
+            raise
 
-            self._save_cookies()
+        self._save_cookies()
 
-    async def _get_device_code(self, session):
+    async def _get_device_code(self):
         """This function used to get URL for auth to user to account. And device code which used in get_token() to get access_token."""
         payload = {
             "client_id": CLIENT_ID,
             "scopes": "channel_read chat:read user_blocks_edit user_blocks_read user_follows_edit user_read",
         }
 
-        async with session.post("https://id.twitch.tv/oauth2/device", data=payload, raise_for_status=True) as response:
+        async with self._sess.post("https://id.twitch.tv/oauth2/device", data=payload, raise_for_status=True) as response:
             return await response.json()
 
-    async def _get_token(self, session, device_code):
+    async def _get_token(self, device_code):
         """This function used to get access_token with device_code. If user authorized account then return True else False"""
         payload = {
             "client_id": CLIENT_ID,
@@ -71,18 +71,18 @@ class TwitchLogin:
             "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
         }
 
-        async with session.post("https://id.twitch.tv/oauth2/token", data=payload, raise_for_status=True) as response:
+        async with self._sess.post("https://id.twitch.tv/oauth2/token", data=payload, raise_for_status=True) as response:
             data = await response.json()
 
         return data["access_token"]
 
-    async def _validate(self, session):
+    async def _validate(self):
         """In this function we validating account if access_token not expired and valid. Plus we get user_id which used in some requests and nickname (login)."""
         headers = {
                 "Authorization": f"OAuth {self.access_token}",
         }
 
-        async with session.get("https://id.twitch.tv/oauth2/validate", headers=headers, raise_for_status=True) as response:
+        async with self._sess.get("https://id.twitch.tv/oauth2/validate", headers=headers, raise_for_status=True) as response:
             data = await response.json()
 
 

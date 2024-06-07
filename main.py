@@ -30,15 +30,16 @@ def setup_logger():
     logging.getLogger("websocket").setLevel(logging.ERROR)
 
 async def main():
-    # AUTH
-    twitch_login = TwitchLogin(cookie_filename="cookies.json")
-    await twitch_login.login()
 
-    logging.info(f"Successfully logged in as {twitch_login.nickname}")
-
-    # API
     async with aiohttp.ClientSession(raise_for_status=True, timeout=aiohttp.ClientTimeout(total=60)) as session:
+        # AUTH
+        twitch_login = TwitchLogin(session, cookie_filename="cookies.json")
+        await twitch_login.login()
+        logging.info(f"Successfully logged in as {twitch_login.nickname}")
+
+        # API
         api = TwitchApi(session, twitch_login)
+
         # miner(api)
         # print(await api.get_channel_information("lenovolegion"))
         # print(await api.playback_access_token("thegiftingchannel"))
