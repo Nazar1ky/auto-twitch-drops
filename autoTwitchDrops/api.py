@@ -95,6 +95,47 @@ class TwitchApi:
 
         return response["dropCampaign"]
 
+    async def get_inventory(self):
+        data = copy.deepcopy(GQLOperations.Inventory)
+        response = await self.send_request(data)
+
+        return response["currentUser"]["inventory"]
+
+    async def get_campaigns(self):
+        data = copy.deepcopy(GQLOperations.ViewerDropsDashboard)
+
+        response = await self.send_request(data)
+
+        return response["currentUser"]["dropCampaigns"]
+
+    async def get_category_streamers(self, game_slug, limit = 100):
+        data = copy.deepcopy(GQLOperations.DirectoryPage_Game)
+        data["variables"]["limit"] = 100 # To request 100 channels per request
+        data["variables"]["slug"] = game_slug
+
+        channels = []
+
+        while True:
+            response = await self.send_request(data)
+
+            if not response.get("game"):
+                raise RuntimeError("That game slug not exists!")
+
+            response = response["game"]["streams"]
+
+            channels.extend(response["edges"])
+
+            if len(channels) >= limit:
+                break
+
+            if not response["pageInfo"]["hasNextPage"]:
+                break
+
+            response["variables"]["cursor"] = response["edges"][-1]["cursor"]
+
+        return channels # HACK Idk, if raise there error but if no streamers it return just [] (empty list)
+
+
 # - - - - / IN WORK \ - - - - #
 
     async def claim_drop(self, drop_id):
@@ -112,44 +153,29 @@ class TwitchApi:
 
         return True
 
-    def get_inventory(self):
-        data = self.send_request("Inventory")
+    async def get_full_campaigns_data(self, ids):
+        campaigns = []
+        campaigns_per_batch = 35 # This is limit of GraphQL
 
-        return data["currentUser"]["inventory"]
+        for i in range(0, len(ids), campaigns_per_batch):
+            ids_to_request = ids[i:i+campaigns_per_batch]
 
-    def get_campaigns(self):
-        data = {
-            "operationName": "ViewerDropsDashboard",
-        }
+            request = []
 
-        data = self.send_request("ViewerDropsDashboard")
+            for id_ in ids_to_request:
+                data = copy.deepcopy(GQLOperations.DropCampaignDetails)
+                data["variables"]["channelLogin"] = self.login.nickname
+                data["variables"]["dropID"] = id_
 
-        return data["currentUser"]["dropCampaigns"]
+                request.append(data)
 
+            campaigns.append(await self.send_request(request))
 
-    def get_category_streamers(self, game_slug, cursor = None, limit = 100):
-        variables = {
-            "cursor": cursor,
-            "limit": limit,
-            "slug": game_slug,
-            "imageWidth": 50,
-            "options": {
-                "broadcasterLanguages": [],
-                "freeformTags": None,
-                "includeRestricted": ["SUB_ONLY_LIVE"],
-                "recommendationsContext": {"platform": "web"},
-                "sort": "RELEVANCE",
-                "tags": [],
-                "systemFilters": [
-                    "DROPS_ENABLED",
-                ],
-                "requestID": DIRECTORYPAGE_REQUESTID,
-            },
-            "sortTypeIsRecency": False,
-        }
+        return campaigns
 
-        data = self.send_request("DirectoryPage_Game", variables)
+# Here should be also imported claim_all_drops get_channels_to_mine get_full_campaign_data_batch watch
 
-        return data["game"]["streams"]
-
-# Here should be also imported claim_all_drops get_channels_to_mine get_full_campaign_data_batch
+# Renaming:
+# api -> twitch (Every api call)
+# mine -> miner (Should be used to call api functions and just do array operations)
+# WebSocket -> websocket (Websocket system to track mined Twitch drops)
