@@ -4,8 +4,6 @@ import logging
 import aiohttp
 
 from .constants import (
-    CLIENT_ID,
-    USER_AGENT,
     GQLOperations,
 )
 
@@ -18,8 +16,6 @@ class TwitchApi:
         self.login = login
         self._sess.headers.update({
             "authorization": f"OAuth {login.access_token}",
-            "client-id": CLIENT_ID,
-            "user-agent": USER_AGENT,
         })
 
     async def send_request(self, request):

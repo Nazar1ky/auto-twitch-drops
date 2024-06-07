@@ -3,7 +3,7 @@ import logging
 
 import aiohttp
 
-from autoTwitchDrops import TwitchApi, TwitchLogin
+from autoTwitchDrops import TwitchApi, TwitchLogin, constants
 
 
 def setup_logger():
@@ -30,8 +30,7 @@ def setup_logger():
     logging.getLogger("websocket").setLevel(logging.ERROR)
 
 async def main():
-
-    async with aiohttp.ClientSession(raise_for_status=True, timeout=aiohttp.ClientTimeout(total=60)) as session:
+    async with aiohttp.ClientSession(raise_for_status=True, timeout=aiohttp.ClientTimeout(total=60), headers={"client-id": constants.CLIENT_ID,"user-agent": constants.USER_AGENT}) as session:
         # AUTH
         twitch_login = TwitchLogin(session, cookie_filename="cookies.json")
         await twitch_login.login()
