@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 
 import aiohttp
@@ -55,27 +54,14 @@ if __name__ == "__main__":
     asyncio.run(main())
 
 """ TODO:
-Refactor
-Unittests(?)
-AIOHTTP
+Unittests
+File Logging Rotate
+README
 
 
-Smart Load:
-* Load all streamers that stream that game
-* Find last drop or more mined drop and mine it
+Sorting:
+* We need sort in groups by game name. Then by endAt. (We need actually mine campaign that end soon)
+* Then every campaign have flag ["allow"]["isEnabled"]. We need sort (False, True, True) -> (True, True, False)
+* Every campaign have **DROPS** we need sort timeBasedDrops by requiredMinutesWatched
 
-more functions find_channel_to_watch
-
-refactor everything
-
-module logging queue required
-
-file logging
-
-
-Found campaign and drop, if all okay - start scraping category, if in category founded streamers that in campaign list - mine, no - skip.
-
-need to sort drop by channels/watch time/campaign game name bruh u
-
-entities for campaigns and drops
 """

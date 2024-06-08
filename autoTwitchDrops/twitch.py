@@ -1,6 +1,7 @@
 import copy
 import logging
 import urllib
+
 import aiohttp
 
 from .constants import (
@@ -60,13 +61,6 @@ class TwitchApi:
 
         return response["user"]
 
-    # async def test(self):
-    #     request = []
-    #     request.append(copy.deepcopy(GQLOperations.VideoPlayerStreamInfoOverlayChannel))
-    #     request.append(copy.deepcopy(GQLOperations.VideoPlayerStreamInfoOverlayChannel))
-    #     data = await self.send_request(request)
-    #     return data
-
     async def playback_access_token(self, channel_name):
         data = copy.deepcopy(GQLOperations.PlaybackAccessToken)
         data["variables"]["login"] = channel_name
@@ -113,7 +107,7 @@ class TwitchApi:
 
     async def get_category_streamers(self, game_slug, limit = 100):
         data = copy.deepcopy(GQLOperations.DirectoryPage_Game)
-        data["variables"]["limit"] = 100 # To request 100 channels per request
+        data["variables"]["limit"] = 100 # To request 100 channels per request (Limit)
         data["variables"]["slug"] = game_slug
 
         channels = []
@@ -217,12 +211,3 @@ class TwitchApi:
         # TODO need to check somehow if claimed
 
         return True
-
-
-
-# Here should be also imported claim_all_drops, watch
-
-# Renaming:
-# api -> twitch (Every api call)
-# mine -> miner (Should be used to call api functions and just do array operations)
-# WebSocket -> websocket (Websocket system to track mined Twitch drops)
