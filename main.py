@@ -28,6 +28,7 @@ def setup_logger():
     logging.getLogger("chardet.charsetprober").setLevel(logging.ERROR)
     logging.getLogger("werkzeug").setLevel(logging.ERROR)
     logging.getLogger("websocket").setLevel(logging.ERROR)
+    logging.getLogger("autoTwitchDrops.twitch").setLevel(logging.ERROR)
 
 async def main():
     setup_logger()
@@ -64,4 +65,12 @@ Sorting:
 * Then every campaign have flag ["allow"]["isEnabled"]. We need sort (False, True, True) -> (True, True, False)
 * Every campaign have **DROPS** we need sort timeBasedDrops by requiredMinutesWatched
 
+timeBasedDrops - Is drops
+Every drop can have many items in benefitEdges
+Like I can watch drop 60 minutes and I will get two items.
+
+Drop have id
+And item have id (benefit)
+INVENTORY use ITEM id
+So IDK how to check if we claimed drop...
 """
