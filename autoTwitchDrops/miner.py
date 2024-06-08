@@ -24,9 +24,52 @@ class TwitchMiner:
 
     async def run(self):
         self.logger.info("Running miner")
-
+        streamer = await self.pick_streamer()
         # WiP
 
+    async def pick_streamer(self):
+        await self.update_inventory()
+        await self.update_campaigns()
+        await self.claim_all_drops()
+        # sort
+        # return by campaign first available channel
+
+    async def update_inventory(self):
+        self.inventory = await self.api.get_inventory()
+        self.claimed_drops_ids = []
+
+        for campaign in self.inventory["dropCampaignsInProgress"]:
+            for drop in campaign["timeBasedDrops"]:
+                if drop["self"]["isClaimed"] or drop["requiredMinutesWatched"] <= drop["self"]["currentMinutesWatched"]:
+                    self.claimed_drops_ids.append(drop["id"])
+
+        logger.info("Inventory updated")
+
+    async def update_campaigns(self):
+        campaigns = list(filter(lambda x: x["status"] == "ACTIVE", await self.api.get_campaigns()))
+
+        campaigns_ids = [campaign["id"] for campaign in campaigns]
+
+        self.campaigns = await self.api.get_full_campaigns_data(campaigns_ids)
+
+        for i, campaign in enumerate(self.campaigns):
+            for j, drop in enumerate(campaign["user"]["dropCampaign"]["timeBasedDrops"]):
+                if drop["id"] in self.claimed_drops_ids:
+                    logger.debug(f"Removed drop {drop["id"]} Name: {drop["name"]}")
+                    del self.campaigns[i]["user"]["dropCampaign"]["timeBasedDrops"][j]
+
+            if len(campaign["user"]["dropCampaign"]["timeBasedDrops"]) == 0:
+                logger.debug(f"Removed campaign {campaign["user"]["dropCampaign"]["id"]} Name: {campaign["user"]["dropCampaign"]["name"]}")
+                del self.campaigns["user"]["dropCampaign"][i]
+
+        logger.info(f"Campaigns updated - {len(self.campaigns)}")
+
+    async def claim_all_drops(self):
+        for campaign in self.inventory["dropCampaignsInProgress"]:
+            for item in campaign["timeBasedDrops"]:
+                if item["requiredMinutesWatched"] <= item["self"]["currentMinutesWatched"] and item["self"]["isClaimed"] is False:
+                    await self.api.claim_drop(item["self"]["dropInstanceID"])
+                    logger.info(f"Claimed drop {item["name"]}")
 
 
 
@@ -51,16 +94,6 @@ class TwitchMiner:
                 logger.info(f"Mining drop {campaign["drop_name"]}")
                 logger.info(f"CATEGORY | Starting Watch {channel} | Time {campaign["time_required"]}.")
                 self.watch(channel, campaign["drop_image_id"])
-
-
-    def claim_all_drops(self):
-        inventory = self.inventory
-
-        for campaign in inventory["dropCampaignsInProgress"]:
-            for item in campaign["timeBasedDrops"]:
-                if item["requiredMinutesWatched"] <= item["self"]["currentMinutesWatched"] and item["self"]["isClaimed"] is False:
-                    self.api.claim_drop(item["self"]["dropInstanceID"])
-                    logger.info(f"Claimed drop {item["name"]}")
 
 
     def get_category_streamers(self, game_slug):
@@ -125,30 +158,6 @@ class TwitchMiner:
         #     json.dump(result, fo, indent=4, ensure_ascii=False)
 
         return result
-
-    async def update_inventory(self):
-        self.inventory = self.api.get_inventory()
-        self.claimed_drops = [drop["id"] for drop in self.inventory["gameEventDrops"]]
-        self.watched_drops = {
-            drop["id"]: drop["self"]["currentMinutesWatched"]
-            for campaign in self.inventory["dropCampaignsInProgress"]
-            for drop in campaign["timeBasedDrops"]
-        }
-
-        logger.info("Inventory updated")
-
-    def update_campaigns(self):
-        if self.campaigns is None: self.campaigns = self.load_campaigns_cache()
-
-        new_campaigns = list(filter(lambda x: x["status"] == "ACTIVE", self.api.get_campaigns()))
-
-        ids = [campaign["id"] for campaign in new_campaigns]
-
-        self.campaigns = self.get_full_campaign_data_batch(ids)
-
-        self.save_campaigns_cache(self.campaigns)
-
-        logger.info(f"Loaded {len(self.campaigns)} campaigns")
 
     def get_channels_to_mine(self, channels, game_id):
         result = []

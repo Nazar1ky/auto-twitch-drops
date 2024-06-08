@@ -208,6 +208,7 @@ class TwitchApi:
 
         response = await self.send_request(data)
 
-        # TODO need to check somehow if claimed
+        if not response.get("claimDropRewards"):
+            raise RuntimeError("Incorrect drop id to claim")
 
-        return True
+        return response
