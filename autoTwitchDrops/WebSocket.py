@@ -6,7 +6,7 @@ import time
 from websocket import WebSocketApp
 
 from .constants import WEBSOCKET
-from .utils import create_nonce, get_drop_image_id
+from .utils import create_nonce
 
 logger = logging.getLogger()
 
