@@ -62,7 +62,7 @@ README
 
 Sorting:
 * We need sort in groups by game name. Then by endAt. (We need actually mine campaign that end soon)
-* Then every campaign have flag ["allow"]["isEnabled"]. We need sort (False, True, True) -> (True, True, False)
+* Then every campaigns in group have flag ["allow"]["isEnabled"]. We need sort (False, True, True) -> (True, True, False)
 * Every campaign have **DROPS** we need sort timeBasedDrops by requiredMinutesWatched
 
 timeBasedDrops - Is drops

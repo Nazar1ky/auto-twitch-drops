@@ -195,8 +195,6 @@ class TwitchApi:
 
         await self._sess.head(lowest_quality_url)
 
-# - - - - / IN WORK \ - - - - #
-
     async def claim_drop(self, drop_id):
         data = copy.deepcopy(GQLOperations.DropsPage_ClaimDropRewards)
 
