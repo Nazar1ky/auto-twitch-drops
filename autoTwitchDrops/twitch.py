@@ -1,6 +1,6 @@
 import copy
 import logging
-
+import urllib
 import aiohttp
 
 from .constants import (
@@ -17,22 +17,36 @@ class TwitchApi:
         self._sess.headers.update({
             "authorization": f"OAuth {login.access_token}",
         })
+        self.max_requests_per_batch = 35
 
-    async def send_request(self, request):
+    async def send_requests(self, request):
+        self.logger.debug(f"Requests {request}")
+
         async with self._sess.post(GQLOperations.url, json=request) as response:
             data = await response.json()
 
-        if isinstance(request, list):
-            for i, r in enumerate(data):
-                if r.get("errors"):
-                    raise RuntimeError(f"Error in request {request}\nResponse: {data}")
+        self.logger.debug(f"Responses {data}")
 
-                data[i] = data[i]["data"]
-        else:
-            if data.get("errors"):
+        for i, r in enumerate(data):
+            if r.get("errors"):
                 raise RuntimeError(f"Error in request {request}\nResponse: {data}")
-            data = data["data"]
 
+            data[i] = data[i]["data"]
+
+        return data
+
+    async def send_request(self, request):
+
+        self.logger.debug(f"Request {request}")
+
+        async with self._sess.post(GQLOperations.url, json=request) as response:
+            data = await response.json()
+
+        self.logger.debug(f"Response {data}")
+
+        if data.get("errors"):
+            raise RuntimeError(f"Error in request {request}\nResponse: {data}")
+        data = data["data"]
         return data
 
     async def get_channel_information(self, channel_name):
@@ -58,6 +72,9 @@ class TwitchApi:
         data["variables"]["login"] = channel_name
 
         response = await self.send_request(data)
+
+        if not response.get("streamPlaybackAccessToken"):
+            raise RuntimeError("Streamer not founded")
 
         return response["streamPlaybackAccessToken"]
 
@@ -122,6 +139,68 @@ class TwitchApi:
         return channels # HACK Idk, if raise there error but if no streamers it return just [] (empty list)
 
 
+    async def get_channels_information(self, channels):
+        result = []
+
+        for i in range(0, len(channels), self.max_requests_per_batch):
+            channels_to_request = channels[i:i+self.max_requests_per_batch]
+
+            request = []
+
+            for channel in channels_to_request:
+                data = copy.deepcopy(GQLOperations.VideoPlayerStreamInfoOverlayChannel)
+                data["variables"]["channel"] = channel
+
+                request.append(data)
+            result.extend(await self.send_requests(request))
+
+        return result
+
+    async def get_full_campaigns_data(self, ids):
+        campaigns = []
+
+        for i in range(0, len(ids), self.max_requests_per_batch):
+            ids_to_request = ids[i:i+self.max_requests_per_batch]
+
+            request = []
+
+            for id_ in ids_to_request:
+                data = copy.deepcopy(GQLOperations.DropCampaignDetails)
+                data["variables"]["channelLogin"] = self.login.user_id
+                data["variables"]["dropID"] = id_
+
+                request.append(data)
+
+            campaigns.extend(await self.send_requests(request))
+
+        return campaigns
+
+    async def send_watch(self, channel_name): # Used to watch, request every 15 seconds
+        data = await self.playback_access_token(channel_name)
+
+        value = urllib.parse.quote_plus(data["value"])
+        signature = data["signature"]
+
+        try:
+            async with self._sess.get(f"https://usher.ttvnw.net/api/channel/hls/{channel_name}.m3u8?sig={signature}&token={value}") as response:
+                video_urls = await response.text()
+        except aiohttp.client_exceptions.ClientResponseError as ex:
+            raise RuntimeError("Streamer offline.") from ex
+
+        self.logger.debug(video_urls)
+
+        video_url = video_urls.split("\n")[-1]
+
+        async with self._sess.get(video_url) as response:
+            low_quality_video = await response.text()
+
+        self.logger.debug(low_quality_video)
+
+        # urls = re.findall(r"https?://[^\s]+", low_quality_video) # We can requests these urls every 2 seconds like Twitch do, but we request last one every 15 seconds.
+        lowest_quality_url = low_quality_video.split("\n")[-2]
+
+        await self._sess.head(lowest_quality_url)
+
 # - - - - / IN WORK \ - - - - #
 
     async def claim_drop(self, drop_id):
@@ -139,27 +218,9 @@ class TwitchApi:
 
         return True
 
-    async def get_full_campaigns_data(self, ids):
-        campaigns = []
-        campaigns_per_batch = 35 # This is limit of GraphQL
 
-        for i in range(0, len(ids), campaigns_per_batch):
-            ids_to_request = ids[i:i+campaigns_per_batch]
 
-            request = []
-
-            for id_ in ids_to_request:
-                data = copy.deepcopy(GQLOperations.DropCampaignDetails)
-                data["variables"]["channelLogin"] = self.login.user_id
-                data["variables"]["dropID"] = id_
-
-                request.append(data)
-
-            campaigns.append(await self.send_request(request))
-
-        return campaigns
-
-# Here should be also imported claim_all_drops get_channels_to_mine get_full_campaign_data_batch watch
+# Here should be also imported claim_all_drops, watch
 
 # Renaming:
 # api -> twitch (Every api call)

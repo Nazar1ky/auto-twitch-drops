@@ -21,13 +21,14 @@ class TwitchLogin:
 
     async def login(self):
         """
-        This is function which called to login. Saved cookies will be in cookies.json.
+        Login to Twitch.
+        Loads cookies file if exists.
         https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/#authorization-code-grant-flow
         """
         try:
             self._load_cookies()
         except (FileNotFoundError, KeyError, json.decoder.JSONDecodeError):
-            device_code = await self._get_device_code()
+            device_code = await self._authorize_device()
             start_time = time.time()
 
             self.logger.info(
@@ -40,7 +41,7 @@ class TwitchLogin:
                     raise RuntimeError("Time ran out")
 
                 try:
-                    self.token = await self._get_token(device_code["device_code"])
+                    self.token = await self._request_token(device_code["device_code"])
                     break
                 except (aiohttp.client_exceptions.ClientResponseError, json.decoder.JSONDecodeError, KeyError):
                     await asyncio.sleep(device_code["interval"])
@@ -53,8 +54,11 @@ class TwitchLogin:
 
         self._save_cookies()
 
-    async def _get_device_code(self):
-        """This function used to get URL for auth to user to account. And device code which used in get_token() to get access_token."""
+    async def _authorize_device(self):
+        """
+        Start device authorization flow.
+        Scopes needed: https://dev.twitch.tv/docs/authentication/scopes/
+        """
         payload = {
             "client_id": CLIENT_ID,
             "scopes": "channel_read chat:read user_blocks_edit user_blocks_read user_follows_edit user_read",
@@ -63,8 +67,10 @@ class TwitchLogin:
         async with self._sess.post("https://id.twitch.tv/oauth2/device", data=payload, raise_for_status=True) as response:
             return await response.json()
 
-    async def _get_token(self, device_code):
-        """This function used to get access_token with device_code. If user authorized account then return True else False"""
+    async def _request_token(self, device_code):
+        """
+        Request tokens from device code
+        """
         payload = {
             "client_id": CLIENT_ID,
             "device_code": device_code,
@@ -77,7 +83,11 @@ class TwitchLogin:
         return data["access_token"]
 
     async def _validate(self):
-        """In this function we validating account if access_token not expired and valid. Plus we get user_id which used in some requests and nickname (login)."""
+        """
+        Validate token is not expired.
+        We also get user_id/username information.
+        https://dev.twitch.tv/docs/authentication/validate-tokens/
+        """
         headers = {
                 "Authorization": f"OAuth {self.access_token}",
         }
@@ -94,11 +104,14 @@ class TwitchLogin:
             "nickname": self.nickname,
             "user_id": self.user_id,
         }
+        self.logger.debug("Saving cookies: %s", self.cookie_filename)
 
         with open(self.cookie_filename, "w", encoding="utf-8") as file:
             json.dump(cookies, file, ensure_ascii=False, indent=4)
 
     def _load_cookies(self):
+        self.logger.debug("Loading cookies: %s", self.cookie_filename)
+
         with open(self.cookie_filename, encoding="utf-8") as file:
             cookies = json.load(file)
 
@@ -108,4 +121,5 @@ class TwitchLogin:
 
     def _remove_cookies(self):
         if os.path.exists(self.cookie_filename):
+            self.logger.debug("Removing cookies: %s", self.cookie_filename)
             os.remove(self.cookie_filename)
