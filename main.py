@@ -1,4 +1,5 @@
 import asyncio
+import ctypes  # TEMPORARY FIX
 import logging
 
 import aiohttp
@@ -41,12 +42,13 @@ async def main():
         twitch_login = TwitchLogin(session, cookie_filename="cookies.json")
         await twitch_login.login()
         logging.info(f"Successfully logged in as {twitch_login.nickname}")
+        ctypes.windll.kernel32.SetConsoleTitleA(twitch_login.nickname)
 
         # API
         api = TwitchApi(session, twitch_login)
 
         # MINER
-        miner = TwitchMiner(twitch_login, api, game=None) # Put there game in str game="Rust"
+        miner = TwitchMiner(twitch_login, api, game="Warhammer: The Horus Heresy - Legions") # Put there game in str game="Rust"
         await miner.run()
 
 if __name__ == "__main__":
@@ -57,6 +59,8 @@ Unittests
 File Logging Rotate
 README
 Check if streamer still stream that game
+Better check if that drop which we need mined
+change console title
 
 Sorting:
 * We need sort in groups by game name. Then by endAt. (We need actually mine campaign that end soon)
