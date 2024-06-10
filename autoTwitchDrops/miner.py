@@ -26,15 +26,25 @@ class TwitchMiner:
             if not data:
                 continue
 
-            if data["topic"] != f"user-drop-events.{self.login.user_id}":
+            if data["topic"] != f"onsite-notifications.{self.login.user_id}":
                 continue
 
             message = json.loads(data["message"])
 
-            if message["type"] == "drop-progress":
-                data = message["data"]
-                if data["current_progress_min"] >= data["required_progress_min"]:
+            if message["type"] == "create-notification":
+                data = message["data"]["notification"]["user_id"]
+                if data["type"] == "user_drop_reward_reminder_notification":
                     self.need_mine = False
+
+            # if data["topic"] != f"user-drop-events.{self.login.user_id}":
+            #     continue
+
+            # message = json.loads(data["message"])
+
+            # if message["type"] == "drop-progress":
+            #     data = message["data"]
+            #     if data["current_progress_min"] >= data["required_progress_min"]:
+            #         self.need_mine = False
 
     async def run_ping(self):
         while True:
