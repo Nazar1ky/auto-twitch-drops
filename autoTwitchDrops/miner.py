@@ -123,7 +123,12 @@ class TwitchMiner:
         return [channel.nickname for channel in response if channel.isStream and channel.game["id"] == game_id]
 
     async def update_inventory(self):
-        self.inventory = [Campaign(x) for x in (await self.api.get_inventory())["dropCampaignsInProgress"]]
+        inventory = await self.api.get_inventory()
+        if inventory.get("dropCampaignsInProgress"):
+            self.inventory = [Campaign(x) for x in (await self.api.get_inventory())["dropCampaignsInProgress"]]
+        else:
+            self.inventory = []
+
         self.claimed_drops_ids = []
 
         for campaign in self.inventory:
