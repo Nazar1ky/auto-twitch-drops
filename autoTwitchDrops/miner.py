@@ -34,7 +34,7 @@ class TwitchMiner:
             if message["type"] == "drop-progress":
                 data = message["data"]
                 if data["current_progress_min"] >= data["required_progress_min"]:
-                    self.drop_mined = False
+                    self.need_mine = False
 
     async def run_ping(self):
         while True:
