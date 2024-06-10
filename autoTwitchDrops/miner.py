@@ -32,7 +32,7 @@ class TwitchMiner:
             message = json.loads(data["message"])
 
             if message["type"] == "create-notification":
-                data = message["data"]["notification"]["user_id"]
+                data = message["data"]["notification"]
                 if data["type"] == "user_drop_reward_reminder_notification":
                     self.need_mine = False
 
