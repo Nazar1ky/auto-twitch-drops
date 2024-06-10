@@ -125,7 +125,7 @@ class TwitchMiner:
     async def update_inventory(self):
         inventory = await self.api.get_inventory()
         if inventory.get("dropCampaignsInProgress"):
-            self.inventory = [Campaign(x) for x in (await self.api.get_inventory())["dropCampaignsInProgress"]]
+            self.inventory = [Campaign(x) for x in inventory["dropCampaignsInProgress"]]
         else:
             self.inventory = []
 
