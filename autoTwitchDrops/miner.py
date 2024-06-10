@@ -86,6 +86,8 @@ class TwitchMiner:
             self.logger.info("No streamers to mine... We will continue in 60 seconds.")
             await asyncio.sleep(60)
 
+        self.logger.debug(f"Founded streamers to mine: {streamers}")
+
         return streamers[0]
 
     async def watch(self, streamer):
