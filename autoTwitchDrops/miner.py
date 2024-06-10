@@ -62,7 +62,12 @@ class TwitchMiner:
             topics = [{
                 "text": "user-drop-events",
                 "type": "user_id",
+            },
+            {
+                "text": "onsite-notifications",
+                "type": "user_id",
             }]
+
             await self.websocket.send_topics(topics)
 
             asyncio.create_task(self.handle_websocket())
