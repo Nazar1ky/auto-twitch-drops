@@ -128,7 +128,7 @@ class TwitchApi:
             if not response["pageInfo"]["hasNextPage"]:
                 break
 
-            response["variables"]["cursor"] = response["edges"][-1]["cursor"]
+            data["variables"]["cursor"] = response["edges"][-1]["cursor"]
 
         return channels # HACK Idk, if raise there error but if no streamers it return just [] (empty list)
 
