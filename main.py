@@ -46,7 +46,7 @@ async def main():
         api = TwitchApi(session, twitch_login)
 
         # MINER
-        miner = TwitchMiner(twitch_login, api, game=None) # Put there game in str ""
+        miner = TwitchMiner(twitch_login, api, game="Warhammer: The Horus Heresy - Legions") # Put there game in str game="Rust"
         await miner.run()
 
 if __name__ == "__main__":

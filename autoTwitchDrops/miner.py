@@ -3,8 +3,8 @@ import json
 import logging
 
 from . import Campaign, Channel
+from .twitchsocket import TwitchWebSocket
 from .utils import sort_campaigns
-from .websocket import TwitchWebSocket
 
 logger = logging.getLogger()
 
@@ -83,8 +83,8 @@ class TwitchMiner:
             if streamers:
                 break
 
-            await asyncio.sleep(60)
             self.logger.info("No streamers to mine... We will continue in 60 seconds.")
+            await asyncio.sleep(60)
 
         return streamers[0]
 
@@ -112,6 +112,7 @@ class TwitchMiner:
                 streamers = [channel["node"]["broadcaster"]["login"] for channel in (await self.api.get_category_streamers(campaign.game["slug"]))]
                 if streamers:
                     break
+
         return streamers
 
         # return by campaign first available channel
