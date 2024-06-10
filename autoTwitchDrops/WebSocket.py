@@ -1,19 +1,59 @@
+import json
 import logging
+
 import websockets
 
 from .constants import WEBSOCKET
 from .utils import create_nonce
 
 
-logger = logging.getLogger()
+class TwitchWebSocket:
+    logger = logging.getLogger(__name__)
 
-class WebSocket:
-    def __init__(self, url):
+    def __init__(self, login):
+        self.login = login
+        self.url = WEBSOCKET
         self.websocket = None
-        self.url = url
 
     async def connect(self):
         self.websocket = await websockets.connect(self.url)
+        self.logger.info("Connected to websocket")
+
+
+    async def send_topics(self, topics):
+        data = {
+            "data": {
+                "auth_token": self.login.access_token,
+                "topics": [f"{topic["text"]}.{topic["channel_id"]}" if topic.get("channel_id") else f"{topic["text"]}.{self.login.user_id}" for topic in topics],
+            },
+            "nonce": create_nonce(),
+            "type":"LISTEN",
+        }
+
+        await self.websocket.send(json.dumps(data))
+
+    async def send_ping(self):
+        data = {"type":"PING"}
+        await self.websocket.send(json.dumps(data))
+        self.logger.info("Server pinged")
+
+
+    async def receive_message(self):
+        async for message in self.websocket:
+            self.logger.debug(f"Received message: {message.strip()}")
+
+            response = json.loads(message)
+
+            if response["type"] != "MESSAGE":
+                return None
+
+            return response["data"]
+        return None
+
+    async def close(self):
+        if self.websocket:
+            await self.websocket.close()
+            self.logger.info("WebSocket connection closed")
 
 # class TwitchWebSocketApp(WebSocketApp):
 #     def __init__(self, twitch, *args, **kw):

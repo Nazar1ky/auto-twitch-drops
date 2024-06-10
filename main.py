@@ -25,9 +25,7 @@ def setup_logger():
     logger.addHandler(fh)
 
     # suppress verbose logs from external libraries
-    logging.getLogger("chardet.charsetprober").setLevel(logging.ERROR)
-    logging.getLogger("werkzeug").setLevel(logging.ERROR)
-    logging.getLogger("websocket").setLevel(logging.ERROR)
+    logging.getLogger("websockets").setLevel(logging.ERROR)
     logging.getLogger("autoTwitchDrops.twitch").setLevel(logging.ERROR)
 
 async def main():
@@ -58,19 +56,12 @@ if __name__ == "__main__":
 Unittests
 File Logging Rotate
 README
-
+Check if streamer still stream that game
 
 Sorting:
 * We need sort in groups by game name. Then by endAt. (We need actually mine campaign that end soon)
 * Then every campaigns in group have flag ["allow"]["isEnabled"]. We need sort (False, True, True) -> (True, True, False)
 * Every campaign have **DROPS** we need sort timeBasedDrops by requiredMinutesWatched
 
-timeBasedDrops - Is drops
-Every drop can have many items in benefitEdges
-Like I can watch drop 60 minutes and I will get two items.
 
-Drop have id
-And item have id (benefit)
-INVENTORY use ITEM id
-So IDK how to check if we claimed drop...
 """
