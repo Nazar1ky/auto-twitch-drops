@@ -49,7 +49,7 @@ async def main():
         api = TwitchApi(session, twitch_login)
 
         # MINER
-        miner = TwitchMiner(twitch_login, api, game="XDefiant") # Put there game in str game="Rust"
+        miner = TwitchMiner(twitch_login, api, game=None) # Put there game in str game="Rust"
         await miner.run()
 
 if __name__ == "__main__":
@@ -62,6 +62,7 @@ README
 Check if streamer still stream that game
 Better check if that drop which we need mined
 change console title
+Restart websocket if it closed
 
 Sorting:
 * We need sort in groups by game name. Then by endAt. (We need actually mine campaign that end soon)

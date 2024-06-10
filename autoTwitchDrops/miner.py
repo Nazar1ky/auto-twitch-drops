@@ -5,7 +5,7 @@ import logging
 from . import Campaign, Channel
 from .twitchsocket import TwitchWebSocket
 from .utils import sort_campaigns
-
+from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 logger = logging.getLogger()
 
 
@@ -18,6 +18,14 @@ class TwitchMiner:
         self.api = api
         self.need_mine = True
         self.game = game
+        self.topics = [{
+                "text": "user-drop-events",
+                "type": "user_id",
+            },
+            {
+                "text": "onsite-notifications",
+                "type": "user_id",
+            }]
 
     async def handle_websocket(self):
         while True:
@@ -35,7 +43,6 @@ class TwitchMiner:
                 data = message["data"]["notification"]
                 if data["type"] == "user_drop_reward_reminder_notification":
                     self.need_mine = False
-
             # if data["topic"] != f"user-drop-events.{self.login.user_id}":
             #     continue
 
@@ -56,19 +63,10 @@ class TwitchMiner:
         self.logger.info("To track your drops progress: https://www.twitch.tv/drops/inventory")
 
         try:
-            self.websocket = TwitchWebSocket(self.login)
+            self.websocket = TwitchWebSocket(self.login, self.topics)
 
             await self.websocket.connect()
-            topics = [{
-                "text": "user-drop-events",
-                "type": "user_id",
-            },
-            {
-                "text": "onsite-notifications",
-                "type": "user_id",
-            }]
-
-            await self.websocket.send_topics(topics)
+            await self.websocket.send_topics(self.topics)
 
             asyncio.create_task(self.handle_websocket())
 

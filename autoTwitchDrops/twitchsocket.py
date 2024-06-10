@@ -10,15 +10,22 @@ from .utils import create_nonce
 class TwitchWebSocket:
     logger = logging.getLogger(__name__)
 
-    def __init__(self, login):
+    def __init__(self, login, topics):
         self.login = login
+        self.topics = topics
         self.url = WEBSOCKET
         self.websocket = None
 
     async def connect(self):
         self.websocket = await websockets.connect(self.url)
+        await self.send_topics(self.topics)
         self.logger.info("Connected to websocket")
 
+    async def reconnect(self):
+        self.logger.warning("Websocket reconnecting...")
+        await self.close()
+        await self.connect()
+        self.logger.info("Websocket reconnected..")
 
     async def send_topics(self, topics):
         data = {
@@ -43,6 +50,10 @@ class TwitchWebSocket:
             self.logger.debug(f"Received message: {message.strip()}")
 
             response = json.loads(message)
+
+            if response["type"] == "RECONNECT":
+                await self.reconnect()
+                return None
 
             if response["type"] != "MESSAGE":
                 return None
