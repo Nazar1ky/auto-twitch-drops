@@ -46,7 +46,7 @@ async def main():
         api = TwitchApi(session, twitch_login)
 
         # MINER
-        miner = TwitchMiner(twitch_login, api, game="Warhammer: The Horus Heresy - Legions") # Put there game in str game="Rust"
+        miner = TwitchMiner(twitch_login, api, game=None) # Put there game in str game="Rust"
         await miner.run()
 
 if __name__ == "__main__":
@@ -62,6 +62,4 @@ Sorting:
 * We need sort in groups by game name. Then by endAt. (We need actually mine campaign that end soon)
 * Then every campaigns in group have flag ["allow"]["isEnabled"]. We need sort (False, True, True) -> (True, True, False)
 * Every campaign have **DROPS** we need sort timeBasedDrops by requiredMinutesWatched
-
-
 """
