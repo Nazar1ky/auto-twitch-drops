@@ -164,7 +164,7 @@ class GQLOperations:
         "extensions": {
             "persistedQuery": {
                 "version": 1,
-                "sha256Hash": "f6396f5ffdde867a8f6f6da18286e4baf02e5b98d14689a69b5af320a4c7b7b8",
+                "sha256Hash": "e7acdecb05429a62f5984bdcb27ee938ae20543579bf73c3ae44e7c822bc4f54",
             },
         },
     }
