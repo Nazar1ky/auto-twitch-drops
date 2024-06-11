@@ -48,6 +48,9 @@ class TwitchLogin:
 
         try:
             self.nickname, self.user_id = await self._validate()
+        except aiohttp.client_exceptions.ClientConnectorError:
+            self.logger.critical("No internet connection")
+            raise
         except Exception:
             self._remove_cookies()
             raise
