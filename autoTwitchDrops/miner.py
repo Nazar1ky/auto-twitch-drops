@@ -158,9 +158,6 @@ class TwitchMiner:
     async def update_inventory(self):
         inventory = await self.api.get_inventory()
 
-        with open("test.json", "w", encoding="utf-8") as fo:
-            json.dump(inventory, fo, indent=4)
-
         if inventory.get("dropCampaignsInProgress"):
             self.inventory = [Campaign(x) for x in inventory["dropCampaignsInProgress"]]
         else:
@@ -190,17 +187,20 @@ class TwitchMiner:
         result = []
 
         for campaign in self.campaigns:
+            add_this_campaign = True
             for drop in campaign.drops:
                 for benefit in drop.benefits_ids:
                     if benefit in self.claimed_drops_ids:
                         logger.debug(f"Removed drop {drop.id_} Name: {drop.name}")
+                        add_this_campaign = False
                         break
 
             if len(campaign.drops) == 0:
                 logger.debug(f"Removed campaign {campaign.id_} Name: {campaign.name}")
+                add_this_campaign = False
                 break
 
-            result.append(campaign)
+            if add_this_campaign: result.append(campaign)
 
         logger.info(f"Campaigns updated - {len(self.campaigns)}")
 
