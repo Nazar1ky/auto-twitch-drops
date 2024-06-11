@@ -82,7 +82,7 @@ class TwitchMiner:
                 except RuntimeError: # Except if stream goes offline
                     self.logger.exception("Streamer seems changed game/go offline, switch.")
                     continue
-                except ServerDisconnectedError as ex:
+                except ServerDisconnectedError:
                     self.logger.exception("Critical error while watching. Restarting.")
                     continue
 
@@ -154,6 +154,9 @@ class TwitchMiner:
     async def update_inventory(self):
         inventory = await self.api.get_inventory()
 
+        with open("test.json", "w", encoding="utf-8") as fo:
+            json.dump(inventory, fo, indent=4)
+
         if inventory.get("dropCampaignsInProgress"):
             self.inventory = [Campaign(x) for x in inventory["dropCampaignsInProgress"]]
         else:
@@ -180,17 +183,20 @@ class TwitchMiner:
         response = await self.api.get_full_campaigns_data(campaigns_ids)
         self.campaigns = [Campaign(x["user"]["dropCampaign"]) for x in response]
 
-        for i, campaign in enumerate(self.campaigns):
-            for j, drop in enumerate(campaign.drops):
+        result = []
+
+        for campaign in self.campaigns:
+            for drop in campaign.drops:
                 for benefit in drop.benefits_ids:
                     if benefit in self.claimed_drops_ids:
                         logger.debug(f"Removed drop {drop.id_} Name: {drop.name}")
-                        del self.campaigns[i].drops[j]
                         break
 
             if len(campaign.drops) == 0:
                 logger.debug(f"Removed campaign {campaign.id_} Name: {campaign.name}")
-                del self.campaigns[i]
+                break
+
+            result.append(campaign)
 
         logger.info(f"Campaigns updated - {len(self.campaigns)}")
 
