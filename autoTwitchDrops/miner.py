@@ -150,6 +150,7 @@ class TwitchMiner:
 
     async def update_inventory(self):
         inventory = await self.api.get_inventory()
+
         if inventory.get("dropCampaignsInProgress"):
             self.inventory = [Campaign(x) for x in inventory["dropCampaignsInProgress"]]
         else:
@@ -160,23 +161,29 @@ class TwitchMiner:
         for campaign in self.inventory:
             for drop in campaign.drops:
                 if drop.claimed or drop.required_time <= drop.watched_time:
-                    self.claimed_drops_ids.append(drop.id_)
+                    for benefit in drop.benefits_ids:
+                        self.claimed_drops_ids.append(benefit)
+
+        if inventory.get("gameEventDrops"): # We will use benefits ids, because that better way to check
+            for drop in inventory["gameEventDrops"]:
+                self.claimed_drops_ids.append(drop["id"])
 
         logger.info("Inventory updated")
 
     async def update_campaigns(self):
         # campaigns = list(filter(lambda x: x["status"] == "ACTIVE", await self.api.get_campaigns()))
         response = await self.api.get_campaigns()
-
         campaigns_ids = [campaign["id"] for campaign in response if campaign["status"] == "ACTIVE"]
-
-        self.campaigns = [Campaign(x["user"]["dropCampaign"]) for x in await self.api.get_full_campaigns_data(campaigns_ids)]
+        response = await self.api.get_full_campaigns_data(campaigns_ids)
+        self.campaigns = [Campaign(x["user"]["dropCampaign"]) for x in response]
 
         for i, campaign in enumerate(self.campaigns):
             for j, drop in enumerate(campaign.drops):
-                if drop.id_ in self.claimed_drops_ids:
-                    logger.debug(f"Removed drop {drop.id_} Name: {drop.name}")
-                    del self.campaigns[i].drops[j]
+                for benefit in drop.benefits_ids:
+                    if benefit in self.claimed_drops_ids:
+                        logger.debug(f"Removed drop {drop.id_} Name: {drop.name}")
+                        del self.campaigns[i].drops[j]
+                        break
 
             if len(campaign.drops) == 0:
                 logger.debug(f"Removed campaign {campaign.id_} Name: {campaign.name}")

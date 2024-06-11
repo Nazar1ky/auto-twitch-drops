@@ -13,4 +13,3 @@ class Campaign:
         self.drops = [Drop(x) for x in data["timeBasedDrops"]]
         self.channelsEnabled = data["allow"]["isEnabled"] if data["allow"].get("isEnabled") is not None else None
         self.channels = [x["name"] for x in data["allow"]["channels"]] if self.channelsEnabled else None
-
