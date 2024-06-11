@@ -20,8 +20,12 @@ class TwitchWebSocket:
 
     async def run_ping(self):
         while True:
-            await self.send_ping()
-            await asyncio.sleep(60)
+            try:
+                await self.send_ping()
+                await asyncio.sleep(60)
+            except Exception:
+                logger.exception("Websocket error, reconnect.")
+                self.websocket.connect()
 
     async def connect(self):
         await self.close()
@@ -81,19 +85,19 @@ class TwitchWebSocket:
 
 
     async def receive_message(self):
-        async for message in self.websocket:
-            self.logger.debug(f"Received message: {message.strip()}")
+            async for message in self.websocket:
+                self.logger.debug(f"Received message: {message.strip()}")
 
-            response = json.loads(message)
+                response = json.loads(message)
 
-            if response["type"] == "RECONNECT":
-                self.logger.warning("Websocket reconnecting...")
-                await self.reconnect()
+                if response["type"] == "RECONNECT":
+                    self.logger.warning("Websocket reconnecting...")
+                    await self.reconnect()
 
-            if response["type"] == "MESSAGE":
-                return response["data"]
+                if response["type"] == "MESSAGE":
+                    return response["data"]
 
-        return None
+            return None
 
     async def close(self):
         if self.websocket:

@@ -31,7 +31,11 @@ class TwitchMiner:
 
     async def handle_websocket(self):
         while True:
-            data = await self.websocket.receive_message()
+            try:
+                data = await self.websocket.receive_message()
+            except Exception:
+                logger.exception("Websocket error, reconnect.")
+                self.websocket.connect()
 
             if not data or not data.get("message"):
                 continue
