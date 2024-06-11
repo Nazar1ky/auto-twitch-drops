@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 
@@ -12,32 +13,66 @@ class TwitchWebSocket:
 
     def __init__(self, login, topics):
         self.login = login
+        self.current_channel = None
         self.topics = topics
         self.url = WEBSOCKET
         self.websocket = None
 
+    async def run_ping(self):
+        while True:
+            await self.send_ping()
+            await asyncio.sleep(60)
+
     async def connect(self):
+        await self.close()
+
         self.websocket = await websockets.connect(self.url)
-        await self.send_topics(self.topics)
+        await self.listen_topics(self.topics)
+        await self.switch_channel_topic(self.current_channel)
+
         self.logger.info("Connected to websocket")
 
-    async def reconnect(self):
-        self.logger.warning("Websocket reconnecting...")
-        await self.close()
-        await self.connect()
-        self.logger.info("Websocket reconnected..")
+    async def switch_channel_topic(self, channel_id = None):
+        if channel_id is None:
+            return
 
-    async def send_topics(self, topics):
+        if self.current_channel and self.current_channel != channel_id:
+            topic = [{"text": "broadcast-settings-update.CHANNEL_ID", "channel_id": self.current_channel}]
+            await self.unlisten_topics(topic)
+
+        self.current_channel = channel_id
+        topic = [{"text": "broadcast-settings-update.CHANNEL_ID", "channel_id": self.current_channel}]
+        await self.listen_topics(topic)
+
+    async def listen_topics(self, topics):
+        topics = [topic["text"].replace("USER_ID", self.login.user_id).replace("CHANNEL_ID", topic["channel_id"] if topic.get("channel_id") else "") for topic in topics]
+
         data = {
             "data": {
                 "auth_token": self.login.access_token,
-                "topics": [f"{topic["text"]}.{topic["channel_id"]}" if topic.get("channel_id") else f"{topic["text"]}.{self.login.user_id}" for topic in topics],
+                "topics": topics,
             },
             "nonce": create_nonce(),
             "type":"LISTEN",
         }
 
         await self.websocket.send(json.dumps(data))
+        self.logger.debug(f"Listen topics: {topics}")
+
+    async def unlisten_topics(self, topics):
+        topics = [topic["text"].replace("USER_ID", self.login.user_id).replace("CHANNEL_ID", topic["CHANNEL_ID"]) for topic in topics]
+
+        data = {
+            "data": {
+                "auth_token": self.login.access_token,
+                "topics": topics,
+            },
+            "nonce": create_nonce(),
+            "type":"UNLISTEN",
+        }
+
+        await self.websocket.send(json.dumps(data))
+        self.logger.debug(f"Unlisten topics: {topics}")
 
     async def send_ping(self):
         data = {"type":"PING"}
@@ -52,102 +87,15 @@ class TwitchWebSocket:
             response = json.loads(message)
 
             if response["type"] == "RECONNECT":
+                self.logger.warning("Websocket reconnecting...")
                 await self.reconnect()
-                return None
 
-            if response["type"] != "MESSAGE":
-                return None
+            if response["type"] == "MESSAGE":
+                return response["data"]
 
-            return response["data"]
         return None
 
     async def close(self):
         if self.websocket:
             await self.websocket.close()
             self.logger.info("WebSocket connection closed")
-
-# class TwitchWebSocketApp(WebSocketApp):
-#     def __init__(self, twitch, *args, **kw):
-#         super().__init__(*args, **kw)
-#         self.twitch = twitch
-#         self.is_opened = False
-
-#     def listen(self, topic):
-#         data = {"topics": [str(topic)]}
-#         data["auth_token"] = self.twitch.login.access_token
-#         nonce = create_nonce()
-#         self.send({"type": "LISTEN", "nonce": nonce, "data": data})
-
-
-#     def send(self, request):
-#         request_str = json.dumps(request, separators=(",", ":"))
-#         super().send(request_str)
-
-#     def ping(self):
-#         self.send({"type": "PING"})
-
-# class TwitchWebSocket:
-#     def __init__(self, twitch):
-#         self.twitch = twitch
-
-#     def run(self):
-#         self.ws = TwitchWebSocketApp(
-#             self.twitch,
-#             url=WEBSOCKET,
-#             on_message=self.on_message,
-#             on_open=self.on_open,
-#             on_error=self.on_error,
-#             on_close=self.on_close,
-#         )
-#         t = threading.Thread(target=self.ws.run_forever)
-#         t.daemon = True
-#         t.start()
-
-#     def close(self):
-#         self.ws.close()
-
-#     @staticmethod
-#     def on_open(ws):
-#         ws.listen(f"onsite-notifications.{ws.twitch.login.user_id}")
-
-#         def run_ping():
-#             while True:
-#                 ws.ping()
-#                 time.sleep(30)
-
-#         t = threading.Thread(target=run_ping)
-#         t.daemon = True
-#         t.start()
-
-#     @staticmethod
-#     def on_close(ws, close_status_code, close_ms):
-#         pass
-
-#     @staticmethod
-#     def on_message(ws, message):
-#         response = json.loads(message)
-
-#         if response["type"] != "MESSAGE":
-#             return
-
-#         message = response["data"]
-
-#         topic, stopic_user = message["topic"].split(".")
-
-#         if topic != "onsite-notifications":
-#             return
-
-#         message = json.loads(message["message"])["data"]
-
-#         if not message.get("notification"):
-#             return
-
-#         notification = message["notification"]
-
-#         image_url = get_drop_image_id(notification["thumbnail_url"])
-
-#         ws.twitch.can_be_claimed.append(image_url)
-
-#     @staticmethod
-#     def on_error(ws, error):
-#         pass

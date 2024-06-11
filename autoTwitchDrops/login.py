@@ -38,7 +38,7 @@ class TwitchLogin:
             while True:
                 if time.time() - start_time > device_code["expires_in"]:
                     self.logger.info("Time for login expired. Restart program.")
-                    raise RuntimeError("Time ran out")
+                    raise RuntimeError("Time ran out") from None
 
                 try:
                     self.access_token = await self._request_token(device_code["device_code"])
