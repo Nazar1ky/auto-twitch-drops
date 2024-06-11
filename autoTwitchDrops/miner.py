@@ -43,6 +43,7 @@ class TwitchMiner:
                     data = message["data"]["notification"]
                     if data["type"] == "user_drop_reward_reminder_notification":
                         self.need_mine = False
+                    return
 
             if data["topic"] == f"broadcast-settings-update.{self.current_channel}":
                 if message["type"] == "broadcast_settings_update":
