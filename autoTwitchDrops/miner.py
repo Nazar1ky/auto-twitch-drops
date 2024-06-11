@@ -7,7 +7,7 @@ from .twitchsocket import TwitchWebSocket
 from .utils import sort_campaigns
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 logger = logging.getLogger()
-
+from aiohttp.client_exceptions import ServerDisconnectedError
 
 
 class TwitchMiner:
@@ -80,9 +80,12 @@ class TwitchMiner:
                     self.current_channel = streamer
                     await self.watch(streamer)
                 except RuntimeError: # Except if stream goes offline
-                    self.logger.exception(RuntimeError)
-                    self.logger.info("Streamer seems changed game/go offline, switch.")
+                    self.logger.exception("Streamer seems changed game/go offline, switch.")
                     continue
+                except ServerDisconnectedError as ex:
+                    self.logger.exception("Critical error while watching. Restarting.")
+                    continue
+
 
         finally:
             await self.websocket.close()
