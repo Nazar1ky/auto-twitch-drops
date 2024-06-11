@@ -1,6 +1,7 @@
 class Channel:
     def __init__(self, data):
         self.id = data["id"]
+
         if data.get("broadcaster"):
             self.nickname = data["broadcaster"]["login"]
         else:

@@ -33,7 +33,7 @@ class TwitchMiner:
         while True:
             data = await self.websocket.receive_message()
 
-            if not data and not data.get("message"):
+            if not data or not data.get("message"):
                 continue
 
             message = json.loads(data["message"])
@@ -132,7 +132,9 @@ class TwitchMiner:
                     break
 
             else:
-                streamers = [Channel(channel["node"]) for channel in (await self.api.get_category_streamers(campaign.game["slug"]))]
+                response = await self.api.get_category_streamers(campaign.game["slug"])
+
+                streamers = [Channel(channel["node"]) for channel in response if channel["node"].get("broadcaster")] # we need to check because sometimes twitch give forbidden data
                 if streamers:
                     break
 
@@ -141,8 +143,8 @@ class TwitchMiner:
         # return by campaign first available channel
 
     async def get_online_channels(self, channels, game_id):
-        response = [Channel(channel["user"]) for channel in (await self.api.get_channels_information(channels)) if channel["user"]["stream"] and channel["user"]["broadcastSettings"]["game"]]
-
+        response = await self.api.get_channels_information(channels)
+        response = [Channel(channel["user"]) for channel in response if channel["user"]["stream"] and channel["user"]["broadcastSettings"]["game"]]
         return list(filter(lambda x: x.game["id"] == game_id, response))
 
     async def update_inventory(self):
