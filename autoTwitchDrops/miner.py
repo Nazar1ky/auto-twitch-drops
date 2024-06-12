@@ -2,7 +2,11 @@ import asyncio
 import json
 import logging
 
-from aiohttp.client_exceptions import ServerDisconnectedError
+from aiohttp.client_exceptions import (
+    ClientConnectionError,
+    ClientConnectorError,
+    ServerDisconnectedError,
+)
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
 from . import Channel
@@ -89,7 +93,7 @@ class TwitchMiner:
                     self.logger.exception("Critical error while watching. Restarting.")
                     continue
 
-                except Exception:
+                except (TimeoutError, ClientConnectionError, ClientConnectorError):
                     self.logger.exception("Error")
                     continue
 
