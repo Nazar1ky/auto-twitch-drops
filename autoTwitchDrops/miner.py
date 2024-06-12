@@ -83,13 +83,16 @@ class TwitchMiner:
                 try:
                     self.current_channel = streamer
                     await self.watch(streamer)
+                    await self.websocket.switch_channel_topic(streamer.id)
+
                 except RuntimeError: # Except if stream goes offline
                     self.logger.exception("Streamer seems changed game/go offline, switch.")
                     continue
                 except ServerDisconnectedError:
                     self.logger.exception("Critical error while watching. Restarting.")
                     continue
-
+                finally:
+                    self.current_channel = None
 
         finally:
             await self.websocket.close()
@@ -114,8 +117,6 @@ class TwitchMiner:
         return streamers[0]
 
     async def watch(self, streamer):
-        await self.websocket.switch_channel_topic(streamer.id)
-
         while self.need_mine:
             if self.current_game and self.current_game != self.current_channel.game["id"]:
                 raise RuntimeError("Streamer changed game")
@@ -132,6 +133,8 @@ class TwitchMiner:
         for campaign in self.campaigns:
             if self.game and self.game != campaign.game["displayName"]:
                 continue
+
+            self.logger.debug(f"Founded campaign to mine: {campaign.name}")
 
             if campaign.channelsEnabled:
                 streamers = await self.get_online_channels(campaign.channels, campaign.game["id"])
@@ -184,23 +187,34 @@ class TwitchMiner:
         response = await self.api.get_full_campaigns_data(campaigns_ids)
         self.campaigns = [Campaign(x["user"]["dropCampaign"]) for x in response]
 
-        result = []
+        campaigns_to_remove = []
+        drops_to_remove = {}
 
-        for campaign in self.campaigns:
-            add_this_campaign = True
-            for drop in campaign.drops:
+        # Identify drops and campaigns to remove
+        for i, campaign in enumerate(self.campaigns):
+
+            drops_to_remove[i] = []
+            for j, drop in enumerate(campaign.drops):
                 for benefit in drop.benefits_ids:
                     if benefit in self.claimed_drops_ids:
                         logger.debug(f"Removed drop {drop.id_} Name: {drop.name}")
-                        add_this_campaign = False
+                        drops_to_remove[i].append(j)
                         break
 
+        # Remove drops in reverse order to avoid indexing issues
+        for i, drop_indices in drops_to_remove.items():
+            for j in sorted(drop_indices, reverse=True):
+                del self.campaigns[i].drops[j]
+
+        # Remove empty campaigns
+        for i, campaign in reversed(list(enumerate(self.campaigns))):
             if len(campaign.drops) == 0:
                 logger.debug(f"Removed campaign {campaign.id_} Name: {campaign.name}")
-                add_this_campaign = False
-                break
+                del self.campaigns[i]
 
-            if add_this_campaign: result.append(campaign)
+        # Remove campaigns in reverse order to avoid indexing issues
+        for i in sorted(campaigns_to_remove, reverse=True):
+            del self.campaigns[i]
 
         logger.info(f"Campaigns updated - {len(self.campaigns)}")
 
