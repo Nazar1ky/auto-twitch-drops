@@ -45,7 +45,7 @@ class TwitchWebSocket:
             await self.unlisten_channel_updates()
 
         self.current_channel_id = channel_id
-        topic = [{"text": "broadcast-settings-update.CHANNEL_ID", "channel_id": self.current_channel_id}]
+        topic = [f"broadcast-settings-update.{self.current_channel_id}"]
         await self.listen_topics(topic)
 
     async def unlisten_channel_updates(self):
@@ -53,12 +53,10 @@ class TwitchWebSocket:
             return
 
         self.current_channel_id = None
-        topic = [{"text": "broadcast-settings-update.CHANNEL_ID", "channel_id": self.current_channel_id}]
+        topic = [f"broadcast-settings-update.{self.current_channel_id}"]
         await self.unlisten_topics(topic)
 
     async def listen_topics(self, topics):
-        topics = [topic["text"].replace("USER_ID", self.login.user_id).replace("CHANNEL_ID", topic["channel_id"] if topic.get("channel_id") else "") for topic in topics]
-
         data = {
             "data": {
                 "auth_token": self.login.access_token,
@@ -72,8 +70,6 @@ class TwitchWebSocket:
         self.logger.debug(f"Listen topics: {topics}")
 
     async def unlisten_topics(self, topics):
-        topics = [topic["text"].replace("USER_ID", self.login.user_id).replace("CHANNEL_ID", topic["CHANNEL_ID"]) for topic in topics]
-
         data = {
             "data": {
                 "auth_token": self.login.access_token,
@@ -94,7 +90,7 @@ class TwitchWebSocket:
 
     async def send_ping(self):
         data = {"type":"PING"}
-        await self.websocket.send(json.dumps(data))
+        await self.send_data(data)
         self.logger.debug("Server pinged")
 
 

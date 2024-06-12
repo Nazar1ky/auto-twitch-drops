@@ -30,14 +30,7 @@ class TwitchMiner:
         self.game_to_mine = None
         self.actual_game = None
 
-        self.topics = [{
-                "text": "user-drop-events.USER_ID",
-                "type": "user_id",
-            },
-            {
-                "text": "onsite-notifications.USER_ID",
-                "type": "user_id",
-            }]
+        self.topics = [f"user-drop-events.{self.login.user_id}", f"onsite-notifications.{self.login.user_id}"]
 
     async def handle_websocket(self):
         while True:
