@@ -42,7 +42,7 @@ class TwitchWebSocket:
             return
 
         if self.current_channel_id != channel_id:
-            self.unlisten_channel_updates()
+            await self.unlisten_channel_updates()
 
         self.current_channel_id = channel_id
         topic = [{"text": "broadcast-settings-update.CHANNEL_ID", "channel_id": self.current_channel_id}]
@@ -89,7 +89,6 @@ class TwitchWebSocket:
     async def send_data(self, data):
         try:
             await self.websocket.send(json.dumps(data))
-            self.logger.debug(f"Sent data to Websocket: {data}")
         except (websockets.exceptions.ConnectionClosedError, websockets.exceptions.ConnectionClosedOK):
             await self.connect()
 

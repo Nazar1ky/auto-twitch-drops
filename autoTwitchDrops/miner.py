@@ -81,7 +81,8 @@ class TwitchMiner:
             while True:
                 streamer = await self.pick_streamer()
 
-                self.websocket.listen_channel_updates(streamer.id)
+                await self.websocket.listen_channel_updates(streamer.id)
+
                 self.channel_id = streamer.id
                 self.game_to_mine = streamer.game["id"]
 
@@ -100,7 +101,7 @@ class TwitchMiner:
                     self.actual_game = None
                     self.drop_mined = False
 
-                    self.websocket.unlisten_channel_updates()
+                    await self.websocket.unlisten_channel_updates()
 
         finally:
             await self.websocket.close()
