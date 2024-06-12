@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 
+from aiohttp.client_exceptions import ServerDisconnectedError
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
 from . import Channel
@@ -9,7 +10,6 @@ from .twitchsocket import TwitchWebSocket
 from .utils import filter_campaigns, get_drops_to_claim, sort_campaigns
 
 logger = logging.getLogger()
-from aiohttp.client_exceptions import ServerDisconnectedError
 
 
 class TwitchMiner:
@@ -61,7 +61,7 @@ class TwitchMiner:
 
                     return
 
-            if data["topic"] == f"broadcast-settings-update.{self.current_channel.id}":  # noqa: SIM102
+            if data["topic"] == f"broadcast-settings-update.{self.channel_id}":  # noqa: SIM102
                 if message["type"] == "broadcast_settings_update":
                     self.current_game = message["game_id"]
 
@@ -106,6 +106,19 @@ class TwitchMiner:
         finally:
             await self.websocket.close()
 
+    async def watch(self, streamer):
+        if not self.game_to_mine:
+            raise RuntimeError("No game choosed")
+
+        while not self.drop_mined:
+
+            if self.actual_game and self.game_to_mine != self.actual_game:
+                raise RuntimeError("Streamer changed game")
+
+            await self.api.send_watch(streamer.nickname)
+            self.logger.info(f"Watch sent to {streamer.nickname}")
+            await asyncio.sleep(15)
+
     async def pick_streamer(self):
         # UPDATES
         await self.update_inventory()
@@ -129,19 +142,6 @@ class TwitchMiner:
         self.logger.debug(f"Streamers to mine: {[streamer.nickname for streamer in streamers]}")
 
         return streamers[0]
-
-    async def watch(self, streamer):
-        if not self.game_to_mine:
-            raise RuntimeError("No game choosed")
-
-        while not self.drop_mined:
-
-            if self.actual_game and self.game_to_mine != self.actual_game:
-                raise RuntimeError("Streamer changed game")
-
-            await self.api.send_watch(streamer.nickname)
-            self.logger.info(f"Watch sent to {streamer.nickname}")
-            await asyncio.sleep(15)
 
     async def get_channel_to_mine(self):
         streamers = None
