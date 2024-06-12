@@ -105,6 +105,9 @@ class TwitchMiner:
 
                     await self.websocket.unlisten_channel_updates()
 
+        except Exception:
+            self.logger.exception("Critical Error")
+
         finally:
             await self.websocket.close()
 
