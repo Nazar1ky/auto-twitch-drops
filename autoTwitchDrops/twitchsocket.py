@@ -24,7 +24,7 @@ class TwitchWebSocket:
                 await self.send_ping()
                 await asyncio.sleep(60)
             except Exception:
-                logger.exception("Websocket error, reconnect.")
+                self.logger.exception("Websocket error, reconnect.")
                 self.websocket.connect()
 
     async def connect(self):
