@@ -191,5 +191,5 @@ class TwitchMiner:
             return
 
         for drop in get_drops_to_claim(self.inventory):
-            await self.api.claim_drop(drop.instanceId)
-            logger.info(f"Claimed drop {drop.name}")
+            await self.api.claim_drop(drop)
+            logger.info(f"Claimed drop {drop}")
