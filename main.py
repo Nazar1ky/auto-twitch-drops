@@ -36,9 +36,7 @@ async def main():
         "client-id": constants.CLIENT_ID,
         "user-agent": constants.USER_AGENT,
     }
-    SSL_ENABLED = True
-
-    async with aiohttp.ClientSession(raise_for_status=True, timeout=aiohttp.ClientTimeout(total=60), headers=headers, connector=aiohttp.TCPConnector(ssl=SSL_ENABLED)) as session:
+    async with aiohttp.ClientSession(raise_for_status=True, timeout=aiohttp.ClientTimeout(total=60), headers=headers) as session:
         # AUTH
         twitch_login = TwitchLogin(session, cookie_filename="cookies.json")
         await twitch_login.login()
@@ -63,8 +61,8 @@ README
 Better check if that drop which we need mined
 Restart websocket if it closed
 Test websocket multiaccounts (partically done)
+aiohttp.client_exceptions.ServerDisconnectedError
 Maybe send from api entities?
-Fix issue with removing drops and campaigns
 fix issue with checking if streamer enabled drops
 
 Sorting:

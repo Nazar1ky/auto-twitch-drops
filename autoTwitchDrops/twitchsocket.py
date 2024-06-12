@@ -13,40 +13,48 @@ class TwitchWebSocket:
 
     def __init__(self, login, topics):
         self.login = login
-        self.current_channel = None
         self.topics = topics
-        self.url = WEBSOCKET
+
         self.websocket = None
+
+        self.current_channel_id = None
 
     async def run_ping(self):
         while True:
             try:
                 await self.send_ping()
                 await asyncio.sleep(60)
-            except Exception:
+            except (websockets.exceptions.ConnectionClosedError, websockets.exceptions.ConnectionClosedOK):
                 self.logger.exception("Websocket error, reconnect.")
                 self.websocket.connect()
 
     async def connect(self):
         await self.close()
 
-        self.websocket = await websockets.connect(self.url)
+        self.websocket = await websockets.connect(WEBSOCKET)
         await self.listen_topics(self.topics)
-        if self.current_channel: await self.switch_channel_topic(self.current_channel)
+        await self.listen_channel_updates(self.current_channel_id)
 
         self.logger.info("Connected to websocket")
 
-    async def switch_channel_topic(self, channel_id = None):
-        if channel_id is None:
+    async def listen_channel_updates(self, channel_id):
+        if not channel_id:
             return
 
-        if self.current_channel and self.current_channel != channel_id:
-            topic = [{"text": "broadcast-settings-update.CHANNEL_ID", "channel_id": self.current_channel}]
-            await self.unlisten_topics(topic)
+        if self.current_channel_id != channel_id:
+            self.unlisten_channel_updates()
 
-        self.current_channel = channel_id
-        topic = [{"text": "broadcast-settings-update.CHANNEL_ID", "channel_id": self.current_channel}]
+        self.current_channel_id = channel_id
+        topic = [{"text": "broadcast-settings-update.CHANNEL_ID", "channel_id": self.current_channel_id}]
         await self.listen_topics(topic)
+
+    async def unlisten_channel_updates(self):
+        if not self.current_channel_id:
+            return
+
+        self.current_channel_id = None
+        topic = [{"text": "broadcast-settings-update.CHANNEL_ID", "channel_id": self.current_channel_id}]
+        await self.unlisten_topics(topic)
 
     async def listen_topics(self, topics):
         topics = [topic["text"].replace("USER_ID", self.login.user_id).replace("CHANNEL_ID", topic["channel_id"] if topic.get("channel_id") else "") for topic in topics]
@@ -60,7 +68,7 @@ class TwitchWebSocket:
             "type":"LISTEN",
         }
 
-        await self.websocket.send(json.dumps(data))
+        await self.send_data(data)
         self.logger.debug(f"Listen topics: {topics}")
 
     async def unlisten_topics(self, topics):
@@ -75,13 +83,20 @@ class TwitchWebSocket:
             "type":"UNLISTEN",
         }
 
-        await self.websocket.send(json.dumps(data))
+        await self.send_data(data)
         self.logger.debug(f"Unlisten topics: {topics}")
+
+    async def send_data(self, data):
+        try:
+            await self.websocket.send(json.dumps(data))
+            self.logger.debug(f"Sent data to Websocket: {data}")
+        except (websockets.exceptions.ConnectionClosedError, websockets.exceptions.ConnectionClosedOK):
+            await self.connect()
 
     async def send_ping(self):
         data = {"type":"PING"}
         await self.websocket.send(json.dumps(data))
-        self.logger.info("Server pinged")
+        self.logger.debug("Server pinged")
 
 
     async def receive_message(self):
