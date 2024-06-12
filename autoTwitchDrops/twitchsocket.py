@@ -52,9 +52,9 @@ class TwitchWebSocket:
         if not self.current_channel_id:
             return
 
-        self.current_channel_id = None
         topic = [f"broadcast-settings-update.{self.current_channel_id}"]
         await self.unlisten_topics(topic)
+        self.current_channel_id = None
 
     async def listen_topics(self, topics):
         data = {
