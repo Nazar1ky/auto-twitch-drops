@@ -88,6 +88,11 @@ class TwitchMiner:
                 except ServerDisconnectedError:
                     self.logger.exception("Critical error while watching. Restarting.")
                     continue
+
+                except Exception:
+                    self.logger.exception()
+                    continue
+
                 finally:
                     self.channel_id = None
                     self.game_to_mine = None
