@@ -90,7 +90,7 @@ class TwitchMiner:
                     continue
 
                 except Exception:
-                    self.logger.exception()
+                    self.logger.exception("Error")
                     continue
 
                 finally:
