@@ -32,7 +32,7 @@ class TwitchWebSocket:
 
         self.websocket = await websockets.connect(self.url)
         await self.listen_topics(self.topics)
-        await self.switch_channel_topic(self.current_channel)
+        if self.current_channel: await self.switch_channel_topic(self.current_channel)
 
         self.logger.info("Connected to websocket")
 
