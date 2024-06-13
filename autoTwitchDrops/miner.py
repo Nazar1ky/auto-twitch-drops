@@ -60,7 +60,7 @@ class TwitchMiner:
 
             if data["topic"] == f"broadcast-settings-update.{self.channel_id}":  # noqa: SIM102
                 if message["type"] == "broadcast_settings_update":
-                    self.current_game = message["game_id"]
+                    self.actual_game = message["game_id"]
 
     async def run(self):
         self.logger.info("Please don't use Twitch while mining to avoid errors")
@@ -85,7 +85,6 @@ class TwitchMiner:
 
                 try:
                     await self.watch(streamer)
-
                 except RuntimeError: # Except if stream goes offline
                     self.logger.exception("Streamer seems changed game/go offline, switch.")
                     continue
