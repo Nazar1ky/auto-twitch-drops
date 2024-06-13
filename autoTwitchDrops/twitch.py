@@ -54,6 +54,8 @@ class TwitchApi:
                 if attempt >= 3:
                     raise RuntimeError(f"Error in request {request}\nResponse: {data}")
 
+                continue
+
             data = data["data"]
             return data
 
