@@ -21,12 +21,11 @@ class TwitchWebSocket:
 
     async def run_ping(self):
         while True:
-            try:
+            if await self.is_connected():
                 await self.send_ping()
                 await asyncio.sleep(60)
-            except (websockets.exceptions.ConnectionClosedError, websockets.exceptions.ConnectionClosedOK):
-                self.logger.exception("Websocket error, reconnect.")
-                self.websocket.connect()
+            else:
+                await self.connect()
 
     async def connect(self):
         await self.close()
@@ -36,6 +35,9 @@ class TwitchWebSocket:
         await self.listen_channel_updates(self.current_channel_id)
 
         self.logger.info("Connected to websocket")
+
+    async def is_connected(self):
+        return self.websocket is not None and self.websocket.open
 
     async def listen_channel_updates(self, channel_id):
         if not channel_id:
@@ -83,9 +85,9 @@ class TwitchWebSocket:
         self.logger.debug(f"Unlisten topics: {topics}")
 
     async def send_data(self, data):
-        try:
+        if await self.is_connected():
             await self.websocket.send(json.dumps(data))
-        except (websockets.exceptions.ConnectionClosedError, websockets.exceptions.ConnectionClosedOK):
+        else:
             await self.connect()
 
     async def send_ping(self):
@@ -95,21 +97,24 @@ class TwitchWebSocket:
 
 
     async def receive_message(self):
-            async for message in self.websocket:
-                self.logger.debug(f"Received message: {message.strip()}")
+            if await self.is_connected():
+                msg = await self.websocket.recv()
+                self.logger.debug(f"Received message: {msg.strip()}")
 
-                response = json.loads(message)
+                response = json.loads(msg)
 
                 if response["type"] == "RECONNECT":
                     self.logger.warning("Websocket reconnecting...")
-                    await self.reconnect()
+                    await self.connect()
 
                 if response["type"] == "MESSAGE":
                     return response["data"]
+            else:
+                await self.connect()
 
             return None
 
     async def close(self):
-        if self.websocket:
+        if await self.is_connected():
             await self.websocket.close()
-            self.logger.info("WebSocket connection closed")
+            self.logger.info("WebSocket connection closed!")
