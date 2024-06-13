@@ -5,6 +5,7 @@ import logging
 from aiohttp.client_exceptions import (
     ClientConnectionError,
     ClientConnectorError,
+    ClientResponseError,
     ServerDisconnectedError,
 )
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
@@ -88,12 +89,8 @@ class TwitchMiner:
                 except RuntimeError: # Except if stream goes offline
                     self.logger.exception("Streamer seems changed game/go offline, switch.")
                     continue
-                except ServerDisconnectedError:
+                except (TimeoutError, ClientConnectionError, ClientConnectorError, ClientResponseError, ServerDisconnectedError):
                     self.logger.exception("Critical error while watching. Restarting.")
-                    continue
-
-                except (TimeoutError, ClientConnectionError, ClientConnectorError):
-                    self.logger.exception("Error")
                     continue
 
                 finally:
