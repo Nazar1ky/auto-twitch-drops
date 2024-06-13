@@ -43,7 +43,7 @@ class TwitchMiner:
 
             except (ConnectionClosedError, ConnectionClosedOK):
                 logger.exception("Websocket error, reconnect.")
-                self.websocket.connect()
+                await self.websocket.connect()
 
             if not data or not data.get("message"):
                 continue
