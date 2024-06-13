@@ -71,9 +71,9 @@ class TwitchMiner:
 
             await self.websocket.connect()
 
-            asyncio.create_task(self.handle_websocket())
+            messages_thread = asyncio.create_task(self.handle_websocket())
 
-            asyncio.create_task(self.websocket.run_ping())
+            ping_thread = asyncio.create_task(self.websocket.run_ping())
 
             while True:
                 streamer = await self.pick_streamer()

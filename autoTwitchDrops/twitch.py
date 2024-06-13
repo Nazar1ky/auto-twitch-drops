@@ -40,15 +40,22 @@ class TwitchApi:
 
         self.logger.debug(f"Request {request}")
 
-        async with self._sess.post(GQLOperations.url, json=request) as response:
-            data = await response.json()
+        attempt = 0
 
-        self.logger.debug(f"Response {data}")
+        while True:
+            async with self._sess.post(GQLOperations.url, json=request) as response:
+                data = await response.json()
 
-        if data.get("errors"):
-            raise RuntimeError(f"Error in request {request}\nResponse: {data}")
-        data = data["data"]
-        return data
+            self.logger.debug(f"Response {data}")
+
+            if data.get("errors"):
+                self.logger.error(f"Error in request {request}\nResponse: {data}")
+                attempt += 1
+                if attempt >= 3:
+                    raise RuntimeError(f"Error in request {request}\nResponse: {data}")
+
+            data = data["data"]
+            return data
 
     async def get_channel_information(self, channel_name):
         data = copy.deepcopy(GQLOperations.VideoPlayerStreamInfoOverlayChannel)
