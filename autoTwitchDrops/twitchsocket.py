@@ -72,7 +72,7 @@ class TwitchWebSocket:
     async def unlisten_topics(self, topics):
         data = {
             "data": {
-                "auth_token": self.login.access_token,
+                # "auth_token": self.login.access_token,
                 "topics": topics,
             },
             "nonce": create_nonce(),
