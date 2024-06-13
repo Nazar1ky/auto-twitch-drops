@@ -54,7 +54,7 @@ def filter_campaigns(inventory, total_campaigns):  # noqa: C901
             claimed_benefits[benefit["id"]] = datetime.fromisoformat(benefit["lastAwardedAt"])
 
     else:
-        claimed_benefits = []
+        claimed_benefits = {}
 
     if total_campaigns:
         for campaign in total_campaigns:
