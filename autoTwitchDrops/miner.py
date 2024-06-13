@@ -56,7 +56,7 @@ class TwitchMiner:
                     if data["type"] == "user_drop_reward_reminder_notification":
                         self.drop_mined = True
 
-                    return
+                    continue
 
             if data["topic"] == f"broadcast-settings-update.{self.channel_id}":  # noqa: SIM102
                 if message["type"] == "broadcast_settings_update":
