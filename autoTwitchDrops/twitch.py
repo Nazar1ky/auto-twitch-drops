@@ -23,18 +23,32 @@ class TwitchApi:
     async def send_requests(self, request):
         self.logger.debug(f"Requests {request}")
 
-        async with self._sess.post(GQLOperations.url, json=request) as response:
-            data = await response.json()
+        attempt = 0
 
-        self.logger.debug(f"Responses {data}")
+        while True:
+            try:
+                async with self._sess.post(GQLOperations.url, json=request) as response:
+                    data = await response.json()
+            except Exception:
+                self.logger.exception(f"Error when requesting data {request}")
+                attempt += 1
+                if attempt >= 3:
+                    raise RuntimeError(f"Error when requesting data {request}") from Exception
+                continue
 
-        for i, r in enumerate(data):
-            if r.get("errors"):
-                raise RuntimeError(f"Error in request {request}\nResponse: {data}")
+            self.logger.debug(f"Responses {data}")
 
-            data[i] = data[i]["data"]
+            for i, r in enumerate(data):
+                if r.get("errors"):
+                    self.logger.error(f"Error in requests {request}\nResponse: {data}")
+                    attempt += 1
+                    if attempt >= 3:
+                        raise RuntimeError(f"Error in request {request}\nResponse: {data}")
+                    continue
 
-        return data
+                data[i] = data[i]["data"]
+
+            return data
 
     async def send_request(self, request):
 
@@ -43,8 +57,13 @@ class TwitchApi:
         attempt = 0
 
         while True:
-            async with self._sess.post(GQLOperations.url, json=request) as response:
-                data = await response.json()
+            try:
+                async with self._sess.post(GQLOperations.url, json=request) as response:
+                    data = await response.json()
+            except Exception:
+                self.logger.exception(f"Error when requesting data {request}")
+                attempt += 1
+                continue
 
             self.logger.debug(f"Response {data}")
 
