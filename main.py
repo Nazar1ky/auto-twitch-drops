@@ -1,10 +1,16 @@
 import asyncio
-import ctypes
 import logging
+import os
 
 import aiohttp
 
-from autoTwitchDrops import TwitchApi, TwitchLogin, TwitchMiner, constants
+from autoTwitchDrops import (
+    TwitchApi,
+    TwitchLogin,
+    TwitchMiner,
+    TwitchWebSocket,
+    constants,
+)
 
 
 def setup_logger():
@@ -36,20 +42,47 @@ async def main():
         "client-id": constants.CLIENT_ID,
         "user-agent": constants.USER_AGENT,
     }
-    async with aiohttp.ClientSession(raise_for_status=True, timeout=aiohttp.ClientTimeout(total=60), headers=headers) as session:
+
+    cookie_files = [f"cookies/{f}" for f in os.listdir("cookies/") if f.endswith(".json")]
+
+    bots = []
+    sessions = []
+
+    # SETUP WEBSOCKET
+    websocket = TwitchWebSocket()
+    await websocket.connect()
+    ping_task = asyncio.create_task(websocket.run_ping())
+    handle_messages_task = asyncio.create_task(websocket.handle_websocket_messages())
+
+    for cookie_file in cookie_files:
+        # CREATE SESSION
+        session = aiohttp.ClientSession(raise_for_status=True, timeout=aiohttp.ClientTimeout(total=60), headers=headers)
+        sessions.append(session)
+
         # AUTH
-        twitch_login = TwitchLogin(session, cookie_filename="cookies.json")
+        twitch_login = TwitchLogin(session, cookie_filename=cookie_file)
         await twitch_login.login()
         logging.info(f"Successfully logged in as {twitch_login.nickname}")
 
-        ctypes.windll.kernel32.SetConsoleTitleW(twitch_login.nickname)
+        # WEBSOCKET AUTH
+        await websocket.add_topics(twitch_login, [f"user-drop-events.{twitch_login.user_id}",
+                                                  f"onsite-notifications.{twitch_login.user_id}"])
 
         # API
         api = TwitchApi(session, twitch_login)
 
         # MINER
-        miner = TwitchMiner(twitch_login, api, game=None) # Put there game in str game="Rust"
-        await miner.run()
+        miner = TwitchMiner(twitch_login, api, websocket, game=None) # Put there game in str game="Rust"
+        bots.append(asyncio.create_task(miner.run()))
+
+    try:
+        await asyncio.gather(*bots)
+    except asyncio.exceptions.CancelledError:
+        pass
+
+    finally:
+        for session in sessions: await session.close()
+        await websocket.close()
 
 if __name__ == "__main__":
     asyncio.run(main())

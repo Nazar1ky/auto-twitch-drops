@@ -11,75 +11,114 @@ from .utils import create_nonce
 class TwitchWebSocket:
     logger = logging.getLogger(__name__)
 
-    def __init__(self, login, topics):
-        self.login = login
-        self.topics = topics
-
+    def __init__(self):
         self.websocket = None
-
-        self.current_channel_id = None
-
-    async def run_ping(self):
-        while True:
-            if await self.is_connected():
-                await self.send_ping()
-                await asyncio.sleep(60)
-            else:
-                await self.connect()
+        self.accounts_topics = []
+        self.channels_updates = []
 
     async def connect(self):
-        await self.close()
-
         self.websocket = await websockets.connect(WEBSOCKET)
-        await self.listen_topics(self.topics)
-        await self.listen_channel_updates(self.current_channel_id)
+        self.logger.info("Connected to websocket!")
 
-        self.logger.info("Connected to websocket")
+
+    async def reconnect(self):
+        self.logger.info("Reconnecting...")
+
+        self.connect()
+
+        if self.accounts_topics:
+            for topic in self.accounts_topics:
+                self.listen_topics(topic["topics"], topic["login"])
+
+        if self.channels_updates:
+            for channel_update in self.channels_updates:
+                self.listen_topics([f"broadcast-settings-update.{channel_update["channel_id"]}"])
+
+        self.logger.info("Reconnected. All topics listened")
 
     async def is_connected(self):
         return self.websocket is not None and self.websocket.open
 
-    async def listen_channel_updates(self, channel_id):
-        if not channel_id:
+
+    async def find_account(self, user_id):
+        for i, account in enumerate(self.accounts_topics):
+            if account["login"].user_id != user_id:
+                continue
+
+            return account
+
+        return None
+
+    async def find_channel_updates(self, channel_id):
+        for i, channel in enumerate(self.channels_updates):
+            if channel["channel_id"] != channel_id:
+                continue
+
+            return channel, i
+
+        return None
+
+    async def listen_channel_updates(self, channel_id, login):
+        channel, i = await self.find_channel_updates(channel_id)
+
+        if channel:
+            channel["uses"].append(login.user_id)
             return
 
-        if self.current_channel_id != channel_id:
-            await self.unlisten_channel_updates()
-
-        self.current_channel_id = channel_id
-        topic = [f"broadcast-settings-update.{self.current_channel_id}"]
+        topic = [f"broadcast-settings-update.{self.channel_id}"]
         await self.listen_topics(topic)
 
-    async def unlisten_channel_updates(self):
-        if not self.current_channel_id:
-            return
+        self.channels_updates.append({
+            "channel_id": channel_id,
+            "game_id": None,
+            "uses": [login.user_id],
+        })
 
-        topic = [f"broadcast-settings-update.{self.current_channel_id}"]
+    async def unlisten_channel_updates(self, channel_id, login):
+        channel, i = await self.find_channel_updates(channel_id)
+
+        if not channel:
+            raise RuntimeError(f"Channel not founded no unlisten in {self.channels_updates}")
+
+        if len(channel["uses"]) >= 2:
+            channel["uses"].remove(login.user_id)
+
+        topic = [f"broadcast-settings-update.{self.channel_id}"]
         await self.unlisten_topics(topic)
-        self.current_channel_id = None
 
-    async def listen_topics(self, topics):
+        del self.channels_updates[i]
+
+    async def add_topics(self, login, topics):
+        await self.listen_topics(topics, login)
+        self.accounts_topics.append({
+            "topics": topics,
+            "drop_mined": False,
+            "login": login,
+        })
+
+
+    async def listen_topics(self, topics, login=None):
         data = {
             "data": {
-                "auth_token": self.login.access_token,
                 "topics": topics,
             },
             "nonce": create_nonce(),
             "type":"LISTEN",
         }
+        if login: data["data"]["auth_token"] = login.access_token
 
         await self.send_data(data)
         self.logger.debug(f"Listen topics: {topics}")
 
-    async def unlisten_topics(self, topics):
+    async def unlisten_topics(self, topics, login=None):
         data = {
             "data": {
-                # "auth_token": self.login.access_token,
                 "topics": topics,
             },
             "nonce": create_nonce(),
             "type":"UNLISTEN",
         }
+        if login: data["data"]["auth_token"] = login.access_token
 
         await self.send_data(data)
         self.logger.debug(f"Unlisten topics: {topics}")
@@ -97,22 +136,50 @@ class TwitchWebSocket:
 
 
     async def receive_message(self):
-            if await self.is_connected():
-                msg = await self.websocket.recv()
-                self.logger.debug(f"Received message: {msg.strip()}")
+        if await self.is_connected():
+            msg = await self.websocket.recv()
+            self.logger.debug(f"Received message: {msg.strip()}")
 
-                response = json.loads(msg)
+            response = json.loads(msg)
 
-                if response["type"] == "RECONNECT":
-                    self.logger.warning("Websocket reconnecting...")
-                    await self.connect()
-
-                if response["type"] == "MESSAGE":
-                    return response["data"]
-            else:
+            if response["type"] == "RECONNECT":
+                self.logger.warning("Websocket reconnecting...")
                 await self.connect()
 
-            return None
+            if response["type"] == "MESSAGE":
+                return response["data"]
+
+        return None
+
+    async def run_ping(self):
+        while True:
+            await self.send_ping()
+            await asyncio.sleep(60)
+
+    async def handle_websocket_messages(self):
+        while True:
+            data = await self.receive_message()
+
+            if not data or not data.get("message"):
+                continue
+
+            message = json.loads(data["message"])
+
+            message_type, id_ = data["topic"].split(".")
+
+            # HANDLE GAME CHANGE
+            if message_type == "broadcast-settings-update":  # noqa: SIM102
+                if message["type"] == "broadcast_settings_update":
+                    channel = await self.find_channel_updates(id_)
+                    channel["game_id"] = message["game_id"]
+
+            # HANDLE DROP MINED NOTIFICATION
+            if message_type == "onsite-notifications":  # noqa: SIM102
+                if message["type"] == "create-notification":
+                    message_data = message["data"]["notification"]
+                    if message_data["type"] == "user_drop_reward_reminder_notification":
+                        account = await self.find_account(id_)
+                        account["drop_mined"] = True
 
     async def close(self):
         if await self.is_connected():
