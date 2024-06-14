@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 
 from aiohttp.client_exceptions import (
@@ -68,7 +67,8 @@ class TwitchMiner:
         return await self.websocket.find_account(self.login.user_id)
 
     async def get_current_game_id(self, channel_id):
-        return await self.websocket.find_channel_updates(channel_id)["game_id"]
+        channel, i = await self.websocket.find_channel_updates(channel_id)
+        return channel["game_id"]
 
     async def watch(self, streamer):
         if not self.game_to_mine:

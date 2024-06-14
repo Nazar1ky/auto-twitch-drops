@@ -56,34 +56,29 @@ class TwitchWebSocket:
 
             return channel, i
 
-        return None
+        raise RuntimeError("Not founded")
 
     async def listen_channel_updates(self, channel_id, login):
-        channel, i = await self.find_channel_updates(channel_id)
-
-        if channel:
+        try:
+            channel, i = await self.find_channel_updates(channel_id)
             channel["uses"].append(login.user_id)
-            return
+        except RuntimeError:
+            topic = [f"broadcast-settings-update.{channel_id}"]
+            await self.listen_topics(topic)
 
-        topic = [f"broadcast-settings-update.{self.channel_id}"]
-        await self.listen_topics(topic)
-
-        self.channels_updates.append({
-            "channel_id": channel_id,
-            "game_id": None,
-            "uses": [login.user_id],
-        })
+            self.channels_updates.append({
+                "channel_id": channel_id,
+                "game_id": None,
+                "uses": [login.user_id],
+            })
 
     async def unlisten_channel_updates(self, channel_id, login):
         channel, i = await self.find_channel_updates(channel_id)
 
-        if not channel:
-            raise RuntimeError(f"Channel not founded no unlisten in {self.channels_updates}")
-
         if len(channel["uses"]) >= 2:
             channel["uses"].remove(login.user_id)
 
-        topic = [f"broadcast-settings-update.{self.channel_id}"]
+        topic = [f"broadcast-settings-update.{channel_id}"]
         await self.unlisten_topics(topic)
 
         del self.channels_updates[i]
