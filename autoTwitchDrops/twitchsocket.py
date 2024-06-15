@@ -41,7 +41,7 @@ class TwitchWebSocket:
 
 
     async def find_account(self, user_id):
-        for i, account in enumerate(self.accounts_topics):
+        for account in enumerate(self.accounts_topics):
             if account["login"].user_id != user_id:
                 continue
 
@@ -139,7 +139,7 @@ class TwitchWebSocket:
 
             if response["type"] == "RECONNECT":
                 self.logger.warning("Websocket reconnecting...")
-                await self.connect()
+                await self.reconnect()
 
             if response["type"] == "MESSAGE":
                 return response["data"]

@@ -47,9 +47,11 @@ class TwitchMiner:
 
                 try:
                     await self.watch(streamer)
+
                 except RuntimeError: # Except if stream goes offline
                     self.logger.exception("Streamer seems changed game/go offline, switch.")
                     continue
+
                 except (TimeoutError, ClientConnectionError, ClientConnectorError, ClientResponseError, ServerDisconnectedError):
                     self.logger.exception("Critical error while watching. Restarting.")
                     continue
