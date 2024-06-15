@@ -78,6 +78,7 @@ class TwitchWebSocket:
 
         if len(channel["uses"]) >= 2:
             channel["uses"].remove(login.user_id)
+            return
 
         topic = [f"broadcast-settings-update.{channel_id}"]
         await self.unlisten_topics(topic)
