@@ -41,7 +41,8 @@ class TwitchWebSocket:
 
 
     async def find_account(self, user_id):
-        for account in enumerate(self.accounts_topics):
+        for account in self.accounts_topics:
+
             if account["login"].user_id != user_id:
                 continue
 
