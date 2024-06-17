@@ -73,6 +73,8 @@ class TwitchWebSocket:
                 "uses": [login.user_id],
             })
 
+            self.logger.debug(f"channels_updates updated: {self.channels_updates}")
+
     async def unlisten_channel_updates(self, channel_id, login):
         channel, i = await self.find_channel_updates(channel_id)
 
@@ -85,6 +87,8 @@ class TwitchWebSocket:
 
         del self.channels_updates[i]
 
+        self.logger.debug(f"channels_updates updated (remove): {self.channels_updates}")
+
     async def add_topics(self, login, topics):
         await self.listen_topics(topics, login)
         self.accounts_topics.append({
@@ -93,6 +97,7 @@ class TwitchWebSocket:
             "login": login,
         })
 
+        self.logger.debug(f"accounts_topics updated: {self.accounts_topics}")
 
     async def listen_topics(self, topics, login=None):
         data = {
