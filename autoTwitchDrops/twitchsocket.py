@@ -6,7 +6,7 @@ import websockets
 
 from .constants import WEBSOCKET
 from .utils import create_nonce
-
+from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
 class TwitchWebSocket:
     logger = logging.getLogger(__name__)
@@ -121,10 +121,11 @@ class TwitchWebSocket:
         self.logger.debug(f"Unlisten topics: {topics}")
 
     async def send_data(self, data):
-        if await self.is_connected():
+        try:
             await self.websocket.send(json.dumps(data))
-        else:
-            await self.connect()
+        except (ConnectionClosedError, ConnectionClosedOK):
+            self.logger.exception("Connection error during receive_message")
+            await self.reconnect()
 
     async def send_ping(self):
         data = {"type":"PING"}
@@ -133,7 +134,7 @@ class TwitchWebSocket:
 
 
     async def receive_message(self):
-        if await self.is_connected():
+        try:
             msg = await self.websocket.recv()
             self.logger.debug(f"Received message: {msg.strip()}")
 
@@ -146,7 +147,12 @@ class TwitchWebSocket:
             if response["type"] == "MESSAGE":
                 return response["data"]
 
-        return None
+            return None
+
+        except (ConnectionClosedError, ConnectionClosedOK):
+            self.logger.exception("Connection error during receive_message")
+            await self.reconnect()
+            return None
 
     async def run_ping(self):
         while True:
