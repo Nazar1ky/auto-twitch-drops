@@ -21,8 +21,10 @@ class TwitchWebSocket:
 
     async def connect(self):
         self.websocket = await websockets.connect(WEBSOCKET)
-        self.logger.info("Connected to websocket!")
+        self.logger.info("Connected to websocket")
 
+    async def is_connected(self):
+        return self.websocket is not None and self.websocket.open
 
     async def reconnect(self):
         self.logger.info("Reconnecting...")
@@ -32,8 +34,7 @@ class TwitchWebSocket:
         while True:
             try:
                 self.websocket = await websockets.connect(WEBSOCKET)
-            except:
-                self.websocket = None
+            except (ConnectionClosedError, ConnectionClosedOK):
                 self.logger.exception("Error while reconnecting. Retry in 15 seconds.")
                 asyncio.sleep(15)
             else:
@@ -49,8 +50,82 @@ class TwitchWebSocket:
 
         self.logger.info("Reconnected. All topics listened")
 
-    async def is_connected(self):
-        return self.websocket is not None and self.websocket.open
+
+    async def send_data(self, data):
+        try:
+            await self.websocket.send(json.dumps(data))
+        except (ConnectionClosedError, ConnectionClosedOK):
+            if self.closed:
+                return
+
+            self.logger.exception("Connection error")
+            await self.reconnect()
+
+    async def receive_messages(self):
+        try:
+            msg = await self.websocket.recv()
+            self.logger.debug(f"Received message: {msg.strip()}")
+
+            response = json.loads(msg)
+
+            # RECONNECT
+            if response["type"] == "RECONNECT":
+                self.logger.warning("Websocket reconnecting...")
+                await self.reconnect()
+
+            # HANDLE MESSAGE
+            if response["type"] == "MESSAGE" and response["data"].get("message"):
+                message_type, id_ = response["data"]["topic"].split(".")
+
+                await self.handle_message(json.loads(response["data"]["message"]), message_type, id_)
+
+        except (ConnectionClosedError, ConnectionClosedOK):
+            if self.closed:
+                return
+
+            self.logger.exception("Connection error")
+            await self.reconnect()
+
+    async def close(self):
+        self.closed = True
+
+        await self.websocket.close()
+        self.logger.info("WebSocket connection closed")
+
+    # TASKS
+    async def run_ping(self):
+        while not self.closed:
+            if await self.is_connected():
+                await self.send_ping()
+
+            await asyncio.sleep(60)
+
+    async def run_message_handler(self):
+        while not self.closed:
+            if await self.is_connected():
+                await self.receive_messages()
+
+    # EXTRA FUNCTIONS
+    async def send_ping(self):
+        data = { "type": "PING" }
+        await self.send_data(data)
+        self.logger.debug("Ping sent")
+
+
+    async def handle_message(self, message, message_type, id_):
+            # HANDLE GAME CHANGE
+            if message_type == "broadcast-settings-update":  # noqa: SIM102
+                if message["type"] == "broadcast_settings_update":
+                    channel = await self.find_channel_updates(id_)
+                    channel["game_id"] = message["game_id"]
+
+            # HANDLE DROP MINED NOTIFICATION
+            if message_type == "onsite-notifications":  # noqa: SIM102
+                if message["type"] == "create-notification":
+                    message_data = message["data"]["notification"]
+                    if message_data["type"] == "user_drop_reward_reminder_notification":
+                        account = await self.find_account(id_)
+                        account["drop_mined"] = True
 
 
     async def find_account(self, user_id):
@@ -137,85 +212,3 @@ class TwitchWebSocket:
 
         await self.send_data(data)
         self.logger.debug(f"Unlisten topics: {topics}")
-
-    async def send_data(self, data):
-        try:
-            await self.websocket.send(json.dumps(data))
-        except (ConnectionClosedError, ConnectionClosedOK):
-            self.logger.exception("Connection error during receive_message")
-
-            if not self.closed:
-                await self.reconnect()
-
-    async def send_ping(self):
-        data = {"type":"PING"}
-        await self.send_data(data)
-        self.logger.debug("Server pinged")
-
-
-    async def receive_message(self):
-        try:
-            msg = await self.websocket.recv()
-            self.logger.debug(f"Received message: {msg.strip()}")
-
-            response = json.loads(msg)
-
-            if response["type"] == "RECONNECT":
-                self.logger.warning("Websocket reconnecting...")
-                await self.reconnect()
-
-            if response["type"] == "MESSAGE":
-                return response["data"]
-
-            return None
-
-        except (ConnectionClosedError, ConnectionClosedOK):
-            self.logger.exception("Connection error during receive_message")
-
-            if not self.closed:
-                await self.reconnect()
-
-            return None
-
-    async def run_ping(self):
-        while True:
-            if await self.is_connected():
-                await self.send_ping()
-
-            await asyncio.sleep(60)
-
-    async def handle_websocket_messages(self):
-        while True:
-            if not await self.is_connected():
-                asyncio.sleep(5)
-                continue
-
-            data = await self.receive_message()
-
-            if not data or not data.get("message"):
-                continue
-
-            message = json.loads(data["message"])
-
-            message_type, id_ = data["topic"].split(".")
-
-            # HANDLE GAME CHANGE
-            if message_type == "broadcast-settings-update":  # noqa: SIM102
-                if message["type"] == "broadcast_settings_update":
-                    channel = await self.find_channel_updates(id_)
-                    channel["game_id"] = message["game_id"]
-
-            # HANDLE DROP MINED NOTIFICATION
-            if message_type == "onsite-notifications":  # noqa: SIM102
-                if message["type"] == "create-notification":
-                    message_data = message["data"]["notification"]
-                    if message_data["type"] == "user_drop_reward_reminder_notification":
-                        account = await self.find_account(id_)
-                        account["drop_mined"] = True
-
-    async def close(self):
-        if await self.is_connected():
-            self.closed = True
-
-            await self.websocket.close()
-            self.logger.info("WebSocket connection closed!")
