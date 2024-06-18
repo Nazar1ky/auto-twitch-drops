@@ -3,10 +3,11 @@ import json
 import logging
 
 import websockets
+from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
 from .constants import WEBSOCKET
 from .utils import create_nonce
-from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
+
 
 class TwitchWebSocket:
     logger = logging.getLogger(__name__)
@@ -28,7 +29,15 @@ class TwitchWebSocket:
 
         self.websocket = None
 
-        await self.connect()
+        while True:
+            try:
+                self.websocket = await websockets.connect(WEBSOCKET)
+            except:
+                self.websocket = None
+                self.logger.exception("Error while reconnecting. Retry in 15 seconds.")
+                asyncio.sleep(15)
+            else:
+                break
 
         if self.accounts_topics:
             for topic in self.accounts_topics:
@@ -170,11 +179,17 @@ class TwitchWebSocket:
 
     async def run_ping(self):
         while True:
-            await self.send_ping()
+            if self.is_connected():
+                await self.send_ping()
+
             await asyncio.sleep(60)
 
     async def handle_websocket_messages(self):
         while True:
+            if not self.is_connected():
+                asyncio.sleep(5)
+                continue
+
             data = await self.receive_message()
 
             if not data or not data.get("message"):
