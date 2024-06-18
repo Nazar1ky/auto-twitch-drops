@@ -13,6 +13,8 @@ class TwitchWebSocket:
 
     def __init__(self):
         self.websocket = None
+        self.closed = False
+
         self.accounts_topics = []
         self.channels_updates = []
 
@@ -24,15 +26,17 @@ class TwitchWebSocket:
     async def reconnect(self):
         self.logger.info("Reconnecting...")
 
-        self.connect()
+        self.websocket = None
+
+        await self.connect()
 
         if self.accounts_topics:
             for topic in self.accounts_topics:
-                self.listen_topics(topic["topics"], topic["login"])
+                await self.listen_topics(topic["topics"], topic["login"])
 
         if self.channels_updates:
             for channel_update in self.channels_updates:
-                self.listen_topics([f"broadcast-settings-update.{channel_update["channel_id"]}"])
+                await self.listen_topics([f"broadcast-settings-update.{channel_update["channel_id"]}"])
 
         self.logger.info("Reconnected. All topics listened")
 
@@ -130,7 +134,9 @@ class TwitchWebSocket:
             await self.websocket.send(json.dumps(data))
         except (ConnectionClosedError, ConnectionClosedOK):
             self.logger.exception("Connection error during receive_message")
-            await self.reconnect()
+
+            if not self.closed:
+                await self.reconnect()
 
     async def send_ping(self):
         data = {"type":"PING"}
@@ -156,7 +162,10 @@ class TwitchWebSocket:
 
         except (ConnectionClosedError, ConnectionClosedOK):
             self.logger.exception("Connection error during receive_message")
-            await self.reconnect()
+
+            if not self.closed:
+                await self.reconnect()
+
             return None
 
     async def run_ping(self):
@@ -191,5 +200,7 @@ class TwitchWebSocket:
 
     async def close(self):
         if await self.is_connected():
+            self.closed = True
+
             await self.websocket.close()
             self.logger.info("WebSocket connection closed!")
