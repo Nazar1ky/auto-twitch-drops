@@ -179,14 +179,14 @@ class TwitchWebSocket:
 
     async def run_ping(self):
         while True:
-            if self.is_connected():
+            if await self.is_connected():
                 await self.send_ping()
 
             await asyncio.sleep(60)
 
     async def handle_websocket_messages(self):
         while True:
-            if not self.is_connected():
+            if not await self.is_connected():
                 asyncio.sleep(5)
                 continue
 
