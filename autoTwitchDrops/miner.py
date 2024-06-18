@@ -7,7 +7,6 @@ from aiohttp.client_exceptions import (
     ClientResponseError,
     ServerDisconnectedError,
 )
-from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
 from . import Channel
 from .utils import filter_campaigns, get_drops_to_claim, sort_campaigns
@@ -133,7 +132,8 @@ class TwitchMiner:
             else:
                 response = await self.api.get_category_streamers(campaign.game["slug"])
 
-                streamers = [Channel(channel["node"]) for channel in response if channel["node"].get("broadcaster")] # we need to check because sometimes twitch give forbidden data
+                # we need to check because sometimes twitch give forbidden data
+                streamers = [Channel(channel["node"]) for channel in response if channel["node"].get("broadcaster")]
                 if streamers:
                     break
 
