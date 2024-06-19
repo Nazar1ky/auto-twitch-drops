@@ -19,12 +19,15 @@ class TwitchWebSocket:
         self.accounts_topics = []
         self.channels_updates = []
 
+
     async def connect(self):
         self.websocket = await websockets.connect(WEBSOCKET)
         self.logger.info("Connected to websocket")
 
+
     async def is_connected(self):
         return self.websocket is not None and self.websocket.open
+
 
     async def reconnect(self):
         self.logger.info("Reconnecting...")
@@ -61,6 +64,7 @@ class TwitchWebSocket:
             self.logger.exception("Connection error")
             await self.reconnect()
 
+
     async def receive_messages(self):
         try:
             msg = await self.websocket.recv()
@@ -74,10 +78,11 @@ class TwitchWebSocket:
                 await self.reconnect()
 
             # HANDLE MESSAGE
-            if response["type"] == "MESSAGE" and response["data"].get("message"):
+            elif response["type"] == "MESSAGE" and response["data"].get("message"):
                 message_type, id_ = response["data"]["topic"].split(".")
+                message = json.loads(response["data"]["message"])
 
-                await self.handle_message(json.loads(response["data"]["message"]), message_type, id_)
+                await self.handle_message(message, message_type, id_)
 
         except (ConnectionClosedError, ConnectionClosedOK):
             if self.closed:
@@ -86,29 +91,38 @@ class TwitchWebSocket:
             self.logger.exception("Connection error")
             await self.reconnect()
 
+
     async def close(self):
         self.closed = True
 
         await self.websocket.close()
         self.logger.info("WebSocket connection closed")
 
+
     # TASKS
     async def run_ping(self):
         while not self.closed:
-            if await self.is_connected():
-                await self.send_ping()
+            if not await self.is_connected():
+                await asyncio.sleep(5)
+                continue
 
+            await self.send_ping()
             await asyncio.sleep(60)
 
     async def run_message_handler(self):
         while not self.closed:
-            if await self.is_connected():
-                await self.receive_messages()
+            if not await self.is_connected():
+                await asyncio.sleep(5)
+                continue
+
+            await self.receive_messages()
+
 
     # EXTRA FUNCTIONS
     async def send_ping(self):
         data = { "type": "PING" }
         await self.send_data(data)
+
         self.logger.debug("Ping sent")
 
 
@@ -130,13 +144,13 @@ class TwitchWebSocket:
 
     async def find_account(self, user_id):
         for account in self.accounts_topics:
-
             if account["login"].user_id != user_id:
                 continue
 
             return account
 
         return None
+
 
     async def find_channel_updates(self, channel_id):
         for i, channel in enumerate(self.channels_updates):
@@ -146,6 +160,7 @@ class TwitchWebSocket:
             return channel, i
 
         raise RuntimeError("Not founded")
+
 
     async def listen_channel_updates(self, channel_id, login):
         try:
@@ -162,6 +177,7 @@ class TwitchWebSocket:
             })
 
             self.logger.debug(f"channels_updates updated: {self.channels_updates}")
+
 
     async def unlisten_channel_updates(self, channel_id, login):
         channel, i = await self.find_channel_updates(channel_id)
@@ -187,6 +203,7 @@ class TwitchWebSocket:
 
         self.logger.debug(f"accounts_topics updated: {self.accounts_topics}")
 
+
     async def listen_topics(self, topics, login=None):
         data = {
             "data": {
@@ -199,6 +216,7 @@ class TwitchWebSocket:
 
         await self.send_data(data)
         self.logger.debug(f"Listen topics: {topics}")
+
 
     async def unlisten_topics(self, topics, login=None):
         data = {

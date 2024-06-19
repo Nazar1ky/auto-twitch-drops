@@ -11,7 +11,8 @@ from .constants import (
 
 class TwitchApi:
     logger = logging.getLogger(__name__)
-    expected_errors = ["service timeout"]
+
+    expected_errors = ["service timeout"] # TODO
 
 
     def __init__(self, session, login):
