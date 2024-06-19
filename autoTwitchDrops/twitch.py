@@ -29,23 +29,17 @@ class TwitchApi:
         attempts = 0
 
         while True:
-            try:
-                async with self._sess.post(GQLOperations.url, json=request) as response:
-                    data = await response.json()
-
-            except Exception:
-                self.logger.exception(f"Error when requesting data {request}")
-                attempts += 1
-                continue
-
-            if attempts >= 3:
-                raise RuntimeError(f"Error when requesting data {request}") from Exception
+            async with self._sess.post(GQLOperations.url, json=request) as response:
+                data = await response.json()
 
             self.logger.debug(f"Responses {data}")
 
+            if attempts >= 3:
+                raise RuntimeError(f"Error when requesting data {request}")
+
             for i, r in enumerate(data):
                 if r.get("errors"):
-                    self.logger.error(f"Error in requests {request}\nResponse: {data}")
+                    self.logger.error(f"#{attempts} Error in requests {request}\nResponse: {data}")
                     attempts += 1
                     continue
 
@@ -59,27 +53,20 @@ class TwitchApi:
         attempts = 0
 
         while True:
-            try:
-                async with self._sess.post(GQLOperations.url, json=request) as response:
-                    data = await response.json()
+            async with self._sess.post(GQLOperations.url, json=request) as response:
+                data = await response.json()
 
-            except Exception:
-                self.logger.exception(f"Error when requesting data {request}")
-                attempts += 1
-                continue
+            self.logger.debug(f"Response {data}")
 
             if attempts >= 3:
                 raise RuntimeError(f"Error in request {request}\nResponse: {data}")
-
-            self.logger.debug(f"Response {data}")
 
             if data.get("errors"):
                 self.logger.error(f"Error in request {request}\nResponse: {data}")
                 attempts += 1
                 continue
 
-            data = data["data"]
-            return data
+            return data["data"]
 
     async def get_channel_information(self, channel_name):
         data = copy.deepcopy(GQLOperations.VideoPlayerStreamInfoOverlayChannel)

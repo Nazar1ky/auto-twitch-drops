@@ -41,8 +41,8 @@ class TwitchMiner:
                 try:
                     streamer = await self.pick_streamer()
                 except ClientConnectorError:
-                    self.logger.error("Error. We will retry in 5 seconds...")
-                    await asyncio.sleep(5)
+                    self.logger.exception("Error. We will retry in 10 seconds...")
+                    await asyncio.sleep(10)
                     continue
 
                 await self.websocket.listen_channel_updates(streamer.id, self.login)
@@ -57,7 +57,7 @@ class TwitchMiner:
                     continue
 
                 except (TimeoutError, ClientConnectionError, ClientConnectorError, ClientResponseError, ServerDisconnectedError):
-                    self.logger.exception("Critical error while watching. Restarting.")
+                    self.logger.exception("Error while watching. Restarting.")
                     continue
 
                 finally:
@@ -94,6 +94,8 @@ class TwitchMiner:
             await self.api.send_watch(streamer.nickname)
             self.logger.info(f"Watch sent to {streamer.nickname}")
             await asyncio.sleep(15)
+
+
 
     async def pick_streamer(self):
         # UPDATES
