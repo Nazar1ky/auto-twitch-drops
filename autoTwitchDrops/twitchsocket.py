@@ -25,11 +25,6 @@ class TwitchWebSocket:
         self.websocket = await websockets.connect(WEBSOCKET)
         self.logger.info("Connected to websocket")
 
-
-    async def is_connected(self):
-        return self.websocket is not None and self.websocket.open
-
-
     async def reconnect(self):
         self.logger.info("Reconnecting...")
 
@@ -41,7 +36,7 @@ class TwitchWebSocket:
                 self.websocket = await websockets.connect(WEBSOCKET)
             except (ConnectionClosedError, ConnectionClosedOK):
                 self.logger.exception("Error while reconnecting. Retry in 15 seconds.")
-                asyncio.sleep(15)
+                await asyncio.sleep(15)
             else:
                 break
 
@@ -98,7 +93,9 @@ class TwitchWebSocket:
     async def close(self):
         self.closed = True
 
-        await self.websocket.close()
+        if self.websocket is not None and self.websocket.open:
+            await self.websocket.close()
+
         self.logger.info("WebSocket connection closed")
 
 
