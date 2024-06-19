@@ -34,7 +34,7 @@ class TwitchWebSocket:
         while True:
             try:
                 self.websocket = await websockets.connect(WEBSOCKET)
-            except (ConnectionClosedError, ConnectionClosedOK):
+            except (ConnectionClosedError, ConnectionClosedOK, OSError):
                 self.logger.exception("Error while reconnecting. Retry in 15 seconds.")
                 await asyncio.sleep(15)
             else:

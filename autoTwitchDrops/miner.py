@@ -38,7 +38,12 @@ class TwitchMiner:
 
         try:
             while True:
-                streamer = await self.pick_streamer()
+                try:
+                    streamer = await self.pick_streamer()
+                except ClientConnectorError:
+                    self.logger.error("Error. We will retry in 5 seconds...")
+                    await asyncio.sleep(5)
+                    continue
 
                 await self.websocket.listen_channel_updates(streamer.id, self.login)
 
