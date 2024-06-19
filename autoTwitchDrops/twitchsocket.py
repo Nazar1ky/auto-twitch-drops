@@ -15,6 +15,7 @@ class TwitchWebSocket:
     def __init__(self):
         self.websocket = None
         self.closed = False
+        self.reconnecting = False
 
         self.accounts_topics = []
         self.channels_updates = []
@@ -33,6 +34,7 @@ class TwitchWebSocket:
         self.logger.info("Reconnecting...")
 
         self.websocket = None
+        self.reconnecting = True
 
         while True:
             try:
@@ -51,6 +53,7 @@ class TwitchWebSocket:
             for channel_update in self.channels_updates:
                 await self.listen_topics([f"broadcast-settings-update.{channel_update["channel_id"]}"])
 
+        self.reconnecting = False
         self.logger.info("Reconnected. All topics listened")
 
 
@@ -58,7 +61,7 @@ class TwitchWebSocket:
         try:
             await self.websocket.send(json.dumps(data))
         except (ConnectionClosedError, ConnectionClosedOK):
-            if self.closed:
+            if self.closed or self.reconnecting:
                 return
 
             self.logger.exception("Connection error")
@@ -85,7 +88,7 @@ class TwitchWebSocket:
                 await self.handle_message(message, message_type, id_)
 
         except (ConnectionClosedError, ConnectionClosedOK):
-            if self.closed:
+            if self.closed or self.reconnecting:
                 return
 
             self.logger.exception("Connection error")
@@ -102,7 +105,7 @@ class TwitchWebSocket:
     # TASKS
     async def run_ping(self):
         while not self.closed:
-            if not await self.is_connected():
+            if self.reconnecting:
                 await asyncio.sleep(5)
                 continue
 
@@ -111,7 +114,7 @@ class TwitchWebSocket:
 
     async def run_message_handler(self):
         while not self.closed:
-            if not await self.is_connected():
+            if self.reconnecting:
                 await asyncio.sleep(5)
                 continue
 
