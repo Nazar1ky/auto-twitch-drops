@@ -60,7 +60,7 @@ async def main():
 
     # TASKS FOR WEBSOCKET
     ping_task = asyncio.create_task(websocket.run_ping())
-    handle_messages_task = asyncio.create_task(websocket.handle_websocket_messages())
+    handle_messages_task = asyncio.create_task(websocket.run_message_handler())
 
     for cookie_file in cookie_files:
         # CREATE SESSION
@@ -117,4 +117,13 @@ Response: [{'errors': [{'message': 'service timeout', 'path': ['user', 'stream']
 
 NielsenContentMetadata
 PlayerTrackingContextQuery
+
+15:56:38 | ERROR | send_requests            | Error in requests [{'operationName': 'VideoPlayerStreamInfoOverlayChannel', 'variables': {'channel': 'rivers_gg'}, 'extensions': {'persistedQuery': {'version': 1, 'sha256Hash': 'a5f2e34d626a9f4f5c0204f910bab2194948a9502089be558bb6e779a9e1b3d2'}}}]
+Response: [{'errors': [{'message': 'service timeout', 'path': ['user', 'broadcastSettings']}], 'data': {'user': {'id': '734906922', 'profileURL': 'https://www.twitch.tv/rivers_gg', 'displayName': 'rivers_gg', 'login': 'rivers_gg', 'profileImageURL': 'https://static-cdn.jtvnw.net/jtv_user_pictures/0e6f8782-d5b9-4a51-ae8a-9c952c213487-profile_image-150x150.png', 'broadcastSettings': None, 'stream': None, '__typename': 'User'}}, 'extensions': {'durationMilliseconds': 128, 'operationName': 'VideoPlayerStreamInfoOverlayChannel', 'requestID': '01J0DZH9N0VRSNBVSJM6GDFJJW'}}]
+15:56:38 | ERROR | run                      | Critical Error
+
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    response = [Channel(channel["user"]) for channel in response if channel["user"]["stream"] and channel["user"]["broadcastSettings"]["game"]]
+                                                                    ~~~~~~~^^^^^^^^
+KeyError: 'user'
 """
