@@ -130,7 +130,7 @@ class TwitchWebSocket:
             # HANDLE GAME CHANGE
             if message_type == "broadcast-settings-update":  # noqa: SIM102
                 if message["type"] == "broadcast_settings_update":
-                    channel = await self.find_channel_updates(id_)
+                    channel, i = await self.find_channel_updates(id_)
                     channel["game_id"] = message["game_id"]
 
             # HANDLE DROP MINED NOTIFICATION
