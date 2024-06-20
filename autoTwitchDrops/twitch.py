@@ -12,6 +12,9 @@ from .constants import (
 class TwitchApi:
     logger = logging.getLogger(__name__)
 
+    expected_errors = ["service timeout"] # TODO
+
+
     def __init__(self, session, login):
         self._sess = session
         self.login = login
@@ -23,27 +26,21 @@ class TwitchApi:
     async def send_requests(self, request):
         self.logger.debug(f"Requests {request}")
 
-        attempt = 0
+        attempts = 0
 
         while True:
-            try:
-                async with self._sess.post(GQLOperations.url, json=request) as response:
-                    data = await response.json()
-            except Exception:
-                self.logger.exception(f"Error when requesting data {request}")
-                attempt += 1
-                if attempt >= 3:
-                    raise RuntimeError(f"Error when requesting data {request}") from Exception
-                continue
+            async with self._sess.post(GQLOperations.url, json=request) as response:
+                data = await response.json()
 
             self.logger.debug(f"Responses {data}")
 
+            if attempts >= 3:
+                raise RuntimeError(f"Error when requesting data {request}")
+
             for i, r in enumerate(data):
                 if r.get("errors"):
-                    self.logger.error(f"Error in requests {request}\nResponse: {data}")
-                    attempt += 1
-                    if attempt >= 3:
-                        raise RuntimeError(f"Error in request {request}\nResponse: {data}")
+                    self.logger.error(f"#{attempts} Error in requests {request}\nResponse: {data}")
+                    attempts += 1
                     continue
 
                 data[i] = data[i]["data"]
@@ -51,32 +48,25 @@ class TwitchApi:
             return data
 
     async def send_request(self, request):
-
         self.logger.debug(f"Request {request}")
 
-        attempt = 0
+        attempts = 0
 
         while True:
-            try:
-                async with self._sess.post(GQLOperations.url, json=request) as response:
-                    data = await response.json()
-            except Exception:
-                self.logger.exception(f"Error when requesting data {request}")
-                attempt += 1
-                continue
+            async with self._sess.post(GQLOperations.url, json=request) as response:
+                data = await response.json()
 
             self.logger.debug(f"Response {data}")
 
+            if attempts >= 3:
+                raise RuntimeError(f"Error in request {request}\nResponse: {data}")
+
             if data.get("errors"):
                 self.logger.error(f"Error in request {request}\nResponse: {data}")
-                attempt += 1
-                if attempt >= 3:
-                    raise RuntimeError(f"Error in request {request}\nResponse: {data}")
-
+                attempts += 1
                 continue
 
-            data = data["data"]
-            return data
+            return data["data"]
 
     async def get_channel_information(self, channel_name):
         data = copy.deepcopy(GQLOperations.VideoPlayerStreamInfoOverlayChannel)

@@ -162,7 +162,7 @@ cython_debug/
 #.idea/
 
 # Cookies
-cookies.json
+cookies
 
 # cache
 campaigns.json

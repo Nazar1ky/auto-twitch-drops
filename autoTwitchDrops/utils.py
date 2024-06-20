@@ -8,11 +8,13 @@ from . import Campaign, Drop
 def create_nonce(length=30) -> str:
     return "".join(sample(string.digits + string.ascii_letters, length))
 
+
 def sort_campaigns(data):
     return sorted(data, key=lambda x: (
         -x.channelsEnabled,
         x.game["displayName"],
         x.endAt))
+
 
 def get_drops_to_claim(inventory):
     drops_to_claim = []
