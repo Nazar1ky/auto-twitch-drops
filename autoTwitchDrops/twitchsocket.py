@@ -46,7 +46,7 @@ class TwitchWebSocket:
 
         if self.channels_updates:
             for channel_update in self.channels_updates:
-                await self.listen_topics([f"broadcast-settings-update.{channel_update["channel_id"]}"])
+                await self.listen_topics([f"broadcast-settings-update.{channel_update['channel_id']}"])
 
         self.reconnecting = False
         self.logger.info("Reconnected. All topics listened")
